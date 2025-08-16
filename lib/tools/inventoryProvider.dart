@@ -140,96 +140,94 @@ class Inventoryprovider with ChangeNotifier {
   // New method to handle complete sale data with looping
   Future<bool> addSaleRecord(SaleData saleData) async {
     try {
-      // First, create the invoice
-      final invoiceData = {
-        'mode': saleData.paymentInfo.paymentMode,
-        'paid': saleData.paymentInfo.isPaymentComplete ? 'Yes' : 'No',
-      };
+      // Use a database transaction to prevent locking issues
+      return await DatabaseHelper.instance.executeTransaction((db) async {
+        // First, create the invoice
+        final invoiceData = {
+          'mode': saleData.paymentInfo.paymentMode,
+          'paid': saleData.paymentInfo.isPaymentComplete ? 'Yes' : 'No',
+        };
 
-      // Insert invoice and get invoice ID
-      final invoiceId = await DatabaseHelper.instance.insertInvoice(
-        invoiceData,
-      );
-
-      // Process each sale item
-      bool allSuccess = true;
-      for (SaleItem item in saleData.items) {
-        // Find the product in inventory to get product_id
-        final product = _inventory.firstWhere(
-          (invItem) => invItem['name'] == item.name,
-          orElse: () => {},
+        // Insert invoice and get invoice ID
+        final invoiceId = await DatabaseHelper.instance.insertInvoiceWithDb(
+          db,
+          invoiceData,
         );
 
-        if (product.isNotEmpty) {
-          // Prepare sale record data
-          final saleRecord = {
-            'invoice_id': invoiceId,
-            'product_id': product['id'],
-            'quantity': item.quantity,
-            'price': item.unitPrice,
-            'created_at': saleData.saleDate.toIso8601String(),
-          };
-
-          // Insert sale record
-          final saleResult = await DatabaseHelper.instance.insertSaleRecord(
-            saleRecord,
+        // Process each sale item
+        bool allSuccess = true;
+        for (SaleItem item in saleData.items) {
+          // Find the product in inventory to get product_id
+          final product = _inventory.firstWhere(
+            (invItem) => invItem['name'] == item.name,
+            orElse: () => {},
           );
 
-          if (saleResult <= 0) {
-            allSuccess = false;
+          if (product.isNotEmpty) {
+            // Prepare sale record data
+            final saleRecord = {
+              'invoice_id': invoiceId,
+              'product_id': product['id'],
+              'quantity': item.quantity,
+              'price': item.unitPrice,
+              'created_at': saleData.saleDate.toIso8601String(),
+            };
+
+            // Insert sale record
+            final saleResult = await DatabaseHelper.instance
+                .insertSaleRecordWithDb(db, saleRecord);
+
+            if (saleResult <= 0) {
+              allSuccess = false;
+            } else {
+              // Update inventory quantity
+              final newQuantity = (product['quantity'] as int) - item.quantity;
+              await DatabaseHelper.instance.updateProductQuantityWithDb(
+                db,
+                product['id'],
+                newQuantity,
+              );
+            }
           } else {
-            // Update inventory quantity
-            final newQuantity = (product['quantity'] as int) - item.quantity;
-            await DatabaseHelper.instance.updateProductQuantity(
-              product['id'],
-              newQuantity,
-            );
-          }
-        } else {
-          allSuccess = false;
-        }
-      }
-
-      // Create debt record if debt is selected
-      if (saleData.debtData != null && saleData.paymentInfo.debtSelected) {
-        try {
-          final debtRecord = {
-            'invoice_id': invoiceId,
-            'names': saleData.debtData!['customer_name'],
-            'email': saleData.debtData!['customer_email'],
-            'phone': saleData.debtData!['customer_phone'],
-            'address': saleData.debtData!['customer_address'],
-            'debt_amount': saleData.debtData!['debt_amount'],
-            'proposed_refund_date': saleData.debtData!['proposed_payment_date'],
-            'created_at': saleData.saleDate.toIso8601String(),
-          };
-
-          final debtResult = await DatabaseHelper.instance.insertDebt(
-            debtRecord,
-          );
-          if (debtResult <= 0) {
             allSuccess = false;
           }
-        } catch (e) {
-          allSuccess = false;
         }
-      }
 
-      // Refresh inventory after all operations
-      await getInventoryItems();
+        // Create debt record if debt is selected
+        if (saleData.debtData != null && saleData.paymentInfo.debtSelected) {
+          try {
+            final debtRecord = {
+              'invoice_id': invoiceId,
+              'names': saleData.debtData!['customer_name'],
+              'email': saleData.debtData!['customer_email'],
+              'phone': saleData.debtData!['customer_phone'],
+              'address': saleData.debtData!['customer_address'],
+              'debt_amount': saleData.debtData!['debt_amount'],
+              'proposed_refund_date':
+                  saleData.debtData!['proposed_payment_date'],
+              'created_at': saleData.saleDate.toIso8601String(),
+            };
 
-      // Refresh sales amount after adding new sales
-      await getSalesAmount();
+            final debtResult = await DatabaseHelper.instance.insertDebtWithDb(
+              db,
+              debtRecord,
+            );
+            if (debtResult <= 0) {
+              allSuccess = false;
+            }
+          } catch (e) {
+            allSuccess = false;
+          }
+        }
 
-      // Refresh debts amount if debt was created
-      if (saleData.debtData != null && saleData.paymentInfo.debtSelected) {
-        await getDebtsAmount();
-      }
-
-      return allSuccess;
+        return allSuccess;
+      });
     } catch (e) {
-      //print('Error in addSaleRecord: $e');
+      print('Error in addSaleRecord: $e');
       return false;
+    } finally {
+      // Always refresh data after the operation, regardless of success/failure
+      await _refreshAllData(saleData.saleDate);
     }
   }
 
@@ -256,7 +254,10 @@ class Inventoryprovider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> getSalesAmount({DateTime? startDate, DateTime? endDate}) async {
+  Future<double> getSalesAmount({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     final totalSales = await DatabaseHelper.instance.getSalesAmount(
       startDate: startDate,
       endDate: endDate,
@@ -264,6 +265,7 @@ class Inventoryprovider with ChangeNotifier {
     _sales = totalSales;
     // Notify listeners that sales amount has changed
     notifyListeners();
+    return _sales;
   }
 
   Future<void> getPurchasesAmount({
@@ -300,22 +302,45 @@ class Inventoryprovider with ChangeNotifier {
   }
 
   // Method to refresh all dashboard data
-  Future<void> refreshDashboardData({
+  Future<bool> refreshDashboardData({
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    await Future.wait([
-      getInventoryItems(),
-      getSalesAmount(startDate: startDate, endDate: endDate),
-      getPurchasesAmount(startDate: startDate, endDate: endDate),
-      getSpentsAmount(startDate: startDate, endDate: endDate),
-      getDebtsAmount(startDate: startDate, endDate: endDate),
-    ]);
+    try {
+      await Future.wait([
+        getInventoryItems(),
+        getSalesAmount(startDate: startDate, endDate: endDate),
+        getPurchasesAmount(startDate: startDate, endDate: endDate),
+        getSpentsAmount(startDate: startDate, endDate: endDate),
+        getDebtsAmount(startDate: startDate, endDate: endDate),
+      ]);
+      // Ensure listeners are notified after all data is refreshed
+      notifyListeners();
+      return true;
+    } catch (e) {
+      // print('Error refreshing dashboard data: $e');
+      // Still notify listeners even if there's an error to update UI
+      notifyListeners();
+      return false;
+    }
   }
-}
 
-
-
+  // Helper method to refresh all data after operations
+  Future<void> _refreshAllData(DateTime saleDate) async {
+    try {
+      await Future.wait([
+        getInventoryItems(),
+        getSalesAmount(startDate: saleDate, endDate: saleDate),
+        getPurchasesAmount(),
+        getSpentsAmount(),
+        getDebtsAmount(),
+      ]);
+      // Ensure listeners are notified
+      notifyListeners();
+    } catch (e) {
+      print('Error refreshing data: $e');
+    }
+  }
 
   // void removeItem(String item) {
   //   _inventoryItems.remove(item);
@@ -326,4 +351,4 @@ class Inventoryprovider with ChangeNotifier {
   //   _inventoryItems.clear();
   //   notifyListeners();
   // }
-
+}

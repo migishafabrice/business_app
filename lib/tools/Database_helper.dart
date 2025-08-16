@@ -261,6 +261,97 @@ class DatabaseHelper {
     );
   }
 
+  // Method to execute database operations in a transaction
+  Future<T> executeTransaction<T>(
+    Future<T> Function(Transaction) action,
+  ) async {
+    final db = await database;
+    return await db.transaction(action);
+  }
+
+  // Method to insert invoice with existing database connection
+  Future<int> insertInvoiceWithDb(
+    Transaction db,
+    Map<String, dynamic> invoice,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    invoice['created_at'] = now;
+    return await db.insert(
+      'invoices',
+      invoice,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Method to insert sale record with existing database connection
+  Future<int> insertSaleRecordWithDb(
+    Transaction db,
+    Map<String, dynamic> saleRecord,
+  ) async {
+    return await db.insert(
+      'sales',
+      saleRecord,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Method to update product quantity with existing database connection
+  Future<int> updateProductQuantityWithDb(
+    Transaction db,
+    int productId,
+    int newQuantity,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    return await db.update(
+      'products',
+      {'quantity': newQuantity, 'created_at': now},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+  }
+
+  // Method to insert debt with existing database connection
+  Future<int> insertDebtWithDb(
+    Transaction db,
+    Map<String, dynamic> debtData,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    debtData['created_at'] = now;
+    return await db.insert(
+      'debt',
+      debtData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Method to insert purchase with existing database connection
+  Future<int> insertPurchaseWithDb(
+    Transaction db,
+    Map<String, dynamic> purchaseData,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    purchaseData['created_at'] = now;
+    return await db.insert(
+      'products',
+      purchaseData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Method to insert spent with existing database connection
+  Future<int> insertSpentWithDb(
+    Transaction db,
+    Map<String, dynamic> spentData,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    spentData['created_at'] = now;
+    return await db.insert(
+      'spents',
+      spentData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   Future<bool> hasAnyuser() async {
     final db = await database;
     final result = await db.rawQuery("select count(*) as count from users");
@@ -292,6 +383,7 @@ class DatabaseHelper {
 
     if (startDate != null && endDate != null) {
       // Filter by date range
+
       final String startDateStr = DateFormat('yyyy-MM-dd').format(startDate);
       final String endDateStr = DateFormat('yyyy-MM-dd').format(endDate);
       final result = await db.rawQuery(

@@ -1,10 +1,6 @@
-// ignore_for_file: use_build_context_synchronously
-
-import 'package:business_app/tools/inventoryProvider.dart';
-import 'package:business_app/tools/Database_helper.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:business_app/tools/inventoryProvider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -17,7 +13,6 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
-  // final TextEditingController _itemController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _unitPriceController = TextEditingController();
@@ -32,12 +27,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final _debtCustomerPhoneController = TextEditingController();
   final _debtCustomerEmailController = TextEditingController();
   final _debtCustomerAddressController = TextEditingController();
+  final _debtAmountController = TextEditingController();
   final _debtProposedDateController = TextEditingController();
+  var debtData = <String, dynamic>{};
   DateTime? _selectedDate;
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-  // Add these variables to track selected payment methods
+
   bool _cashSelected = false;
   bool _momoSelected = false;
   bool _bankSelected = false;
@@ -61,7 +58,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     _startDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
     _endDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // Initialize sales and purchases amounts when the dashboard loads
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final inventoryProvider = Provider.of<Inventoryprovider>(
         context,
@@ -74,8 +70,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Only refresh if this is the first time or if we're returning to the dashboard
-    // This prevents excessive refreshing
   }
 
   @override
@@ -96,7 +90,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // Refresh data when app becomes visible again
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final inventoryProvider = Provider.of<Inventoryprovider>(
           context,
@@ -111,365 +104,123 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final inventoryProvider = Provider.of<Inventoryprovider>(
       context,
-      listen: true, // Changed to true to listen to changes
+      listen: true,
     );
-    return Scaffold(
-      // appBar: AppBar(
-      //   title: Text('Dashboard $inventory'),
-      //   backgroundColor: Colors.blue[900],
-      //   centerTitle: true,
-      // ),
-      body: Container(
-        decoration: BoxDecoration(color: Colors.white),
-        width: double.infinity,
-        height: double.infinity,
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blue[900],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    height: 120,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 60, left: 20),
-                      child: Text(
-                        'Business Wallet',
-                        style: TextStyle(
-                          fontSize: 32,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final cardColor = isDarkMode ? Colors.grey[850]! : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final primaryColor = [Colors.blue[900]!, Colors.blue[800]!];
 
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  final inventoryProvider = Provider.of<Inventoryprovider>(
-                    context,
-                    listen: false,
-                  );
-                  await inventoryProvider.refreshDashboardData();
-                },
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 370,
-                            height: 100,
-                            margin: const EdgeInsets.only(
-                              top: 5,
-                              left: 20,
-                              right: 20,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Center(
-                              child: Form(
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _startDateController,
-                                        onTap: () async {
-                                          await _selectDateForField(
-                                            context,
-                                            _startDateController,
-                                          );
-                                          _onDateChanged();
-                                        },
-                                        readOnly: true,
-                                        decoration: InputDecoration(
-                                          labelText: 'Start Date of Summary',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 20,
-                                    ), // Add spacing between fields
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _endDateController,
-                                        onTap: () async {
-                                          await _selectDateForField(
-                                            context,
-                                            _endDateController,
-                                          );
-                                          _onDateChanged();
-                                        },
-                                        readOnly: true,
-                                        decoration: InputDecoration(
-                                          labelText: 'End Date of Summary',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    IconButton(
-                                      onPressed: () async {
-                                        try {
-                                          final startDate = DateFormat(
-                                            'yyyy-MM-dd',
-                                          ).parse(_startDateController.text);
-                                          final endDate = DateFormat(
-                                            'yyyy-MM-dd',
-                                          ).parse(_endDateController.text);
-                                          final inventoryProvider =
-                                              Provider.of<Inventoryprovider>(
-                                                context,
-                                                listen: false,
-                                              );
-                                          final success =
-                                              await inventoryProvider
-                                                  .refreshDashboardData(
-                                                    startDate: startDate,
-                                                    endDate: endDate,
-                                                  );
-                                          if (success) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Data refreshed successfully',
-                                                ),
-                                                backgroundColor: Colors.green,
-                                                duration: Duration(seconds: 2),
-                                              ),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          // If date parsing fails, refresh with current date
-                                          final inventoryProvider =
-                                              Provider.of<Inventoryprovider>(
-                                                context,
-                                                listen: false,
-                                              );
-                                          final success =
-                                              await inventoryProvider
-                                                  .refreshDashboardData();
-                                          if (success) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Data refreshed successfully',
-                                                ),
-                                                backgroundColor: Colors.green,
-                                                duration: Duration(seconds: 2),
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                      icon: Icon(
-                                        Icons.refresh,
-                                        color: Colors.blue[900],
-                                      ),
-                                      tooltip: 'Refresh Data',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      _buildBigRow(
-                        'Daily Sales',
-                        inventoryProvider.salesAmount > 0
-                            ? '${inventoryProvider.salesAmount.toStringAsFixed(0)} RWF'
-                            : '0 RWF',
-                      ),
-                      // _buildCardRow([
-                      //   {'title': 'Daily Sales', 'amount': '100,000 RWF'},
-                      //   {'title': 'Daily Purchase', 'amount': '300,000 RWF'},
-                      // ]),
-                      _buildCardRow([
-                        {
-                          'title': 'Daily Spent',
-                          'amount': inventoryProvider.spentsAmount > 0
-                              ? '${inventoryProvider.spentsAmount.toStringAsFixed(0)} RWF'
-                              : '0 RWF',
-                          'icon': CupertinoIcons.money_dollar,
-                        },
-                        {
-                          'title': 'Daily Debts',
-                          'amount': inventoryProvider.debtsAmount > 0
-                              ? '${inventoryProvider.debtsAmount.toStringAsFixed(0)} RWF'
-                              : '0 RWF',
-                          'icon': CupertinoIcons.money_dollar,
-                        },
-                      ]),
-                      _buildBigRow(
-                        'Daily Purchase',
-                        inventoryProvider.purchasesAmount > 0
-                            ? '${inventoryProvider.purchasesAmount.toStringAsFixed(0)} RWF'
-                            : '0 RWF',
-                      ),
-                      SizedBox(height: 20),
-                      _buildSummaryPieChart(inventoryProvider),
-                      SizedBox(height: 20),
-                      _buildSummaryBarChart(inventoryProvider),
-                    ],
-                  ),
-                ),
+    return Scaffold(
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
+      appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
+        title: Text(
+          'Business Wallet',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: primaryColor[0],
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/Login',
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async => await inventoryProvider.refreshDashboardData(),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDateRangeSelector(context),
+              SizedBox(height: 20),
+              _buildSummaryCards(
+                inventoryProvider,
+                cardColor,
+                textColor,
+                primaryColor[1],
               ),
-            ),
-          ],
+              SizedBox(height: 20),
+              _buildChartsSection(inventoryProvider, cardColor, textColor),
+              SizedBox(height: 20),
+              _buildQuickActions(primaryColor[1]),
+              SizedBox(height: 20),
+              _buildRecentActivity(cardColor, textColor),
+            ],
+          ),
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
-        shape: CircleBorder(),
-        backgroundColor: Colors.blue[900],
+        onPressed: _showActionMenu,
+        backgroundColor: primaryColor[0],
         child: Icon(Icons.add, color: Colors.white, size: 32),
-        onPressed: () {
-          final RenderBox button = context.findRenderObject() as RenderBox;
-          final RenderBox overlay =
-              Overlay.of(context).context.findRenderObject() as RenderBox;
+      ),
+      bottomNavigationBar: _buildBottomAppBar(primaryColor[0]),
+    );
+  }
 
-          // Get button's global position
-          final Offset buttonPosition = button.localToGlobal(
-            Offset.zero,
-            ancestor: overlay,
-          );
-
-          // Define menu position (above the button)
-          final RelativeRect position = RelativeRect.fromLTRB(
-            buttonPosition.dx +
-                (overlay.size.width / 2) -
-                85, // Left = button's left edge
-            buttonPosition.dy +
-                613, // Top = button's top edge - 100px (to move up)
-            overlay.size.width -
-                buttonPosition.dx, // Right = screen width - button's left
-            overlay.size.height -
-                buttonPosition.dy, // Bottom = screen height - button's top
-          );
-
-          showMenu(
-            context: context,
-            position: position,
-            items: [
-              PopupMenuItem(
-                value: 'Sale',
-                child: SizedBox(
-                  width: 140,
-                  height: 20,
-                  child: Center(
-                    child: Text(
-                      'Sale',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.normal,
+  Widget _buildDateRangeSelector(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Select Date Range',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _startDateController,
+                    onTap: () =>
+                        _selectDateForField(context, _startDateController),
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      labelText: 'Start Date',
+                      prefixIcon: Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'Purchase',
-                child: Center(
-                  child: Text(
-                    'Purchase',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.normal,
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: _endDateController,
+                    onTap: () =>
+                        _selectDateForField(context, _endDateController),
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      labelText: 'End Date',
+                      prefixIcon: Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'Spent',
-                child: Center(
-                  child: Text(
-                    'Spent',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
+                IconButton(
+                  icon: Icon(Icons.refresh, color: Colors.blue),
+                  onPressed: _refreshDashboardWithDateRange,
                 ),
-              ),
-              PopupMenuItem(
-                value: 'Debt',
-                child: Center(
-                  child: Text(
-                    'Debt',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            color: Colors.blue[900],
-          ).then((value) {
-            if (!mounted) return;
-            if (value == 'Sale') showAddSaleForm(context);
-            if (value == 'Purchase') showAddPurchaseForm(context);
-            if (value == 'Spent') showAddSpentForm(context);
-            if (value == 'Debt') showAddDebtForm(context);
-          });
-        },
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        height: 50,
-        shape: CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        color: Colors.blue[900],
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: Icon(Icons.home_rounded, color: Colors.white, size: 30),
-              onPressed: () {
-                // Set state to show home/dashboard
-              },
-            ),
-            SizedBox(width: 48), // The FAB sits here
-            IconButton(
-              icon: Icon(
-                Icons.bar_chart_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-              onPressed: () {
-                // Set state to show stats
-              },
+              ],
             ),
           ],
         ),
@@ -477,39 +228,538 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildCard(String title, String amount) {
+  Widget _buildSummaryCards(
+    Inventoryprovider provider,
+    Color cardColor,
+    Color textColor,
+    Color primaryColor,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Business Summary',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          childAspectRatio: 1.5,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          children: [
+            _buildSummaryCard(
+              'Sales',
+              '${provider.salesAmount.toStringAsFixed(0)} RWF',
+              Icons.shopping_cart,
+              cardColor,
+              textColor,
+              primaryColor,
+            ),
+            _buildSummaryCard(
+              'Purchases',
+              '${provider.purchasesAmount.toStringAsFixed(0)} RWF',
+              Icons.shopping_bag,
+              cardColor,
+              textColor,
+              primaryColor,
+            ),
+            _buildSummaryCard(
+              'Expenses',
+              '${provider.spentsAmount.toStringAsFixed(0)} RWF',
+              Icons.money_off,
+              cardColor,
+              textColor,
+              primaryColor,
+            ),
+            _buildSummaryCard(
+              'Debts',
+              '${provider.debtsAmount.toStringAsFixed(0)} RWF',
+              Icons.credit_card,
+              cardColor,
+              textColor,
+              primaryColor,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(
+    String title,
+    String amount,
+    IconData icon,
+    Color cardColor,
+    Color textColor,
+    Color primaryColor,
+  ) {
     return Card(
-      color: Colors.blue[100],
-      child: SizedBox(
-        width: 177,
-        height: 200,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: cardColor,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 20),
                 ),
-              ),
-              Text(
-                amount,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
+                SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: textColor.withOpacity(0.7),
+                  ),
                 ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              amount,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: textColor,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildChartsSection(
+    Inventoryprovider provider,
+    Color cardColor,
+    Color textColor,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Financial Overview',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: cardColor,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  'Income vs Expenses',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  height: 200,
+                  child: PieChart(
+                    PieChartData(
+                      sections: [
+                        PieChartSectionData(
+                          value: provider.salesAmount > 0
+                              ? provider.salesAmount
+                              : 1,
+                          title: 'Sales',
+                          color: Colors.blue,
+                          radius: 50,
+                        ),
+                        PieChartSectionData(
+                          value: provider.purchasesAmount > 0
+                              ? provider.purchasesAmount
+                              : 1,
+                          title: 'Purchase',
+                          color: Colors.green,
+                          radius: 50,
+                        ),
+                        PieChartSectionData(
+                          value: provider.spentsAmount > 0
+                              ? provider.spentsAmount
+                              : 1,
+                          title: 'Spent',
+                          color: Colors.orange,
+                          radius: 50,
+                        ),
+                        PieChartSectionData(
+                          value: provider.debtsAmount > 0
+                              ? provider.debtsAmount
+                              : 1,
+                          title: 'Debts',
+                          color: Colors.red,
+                          radius: 50,
+                        ),
+                      ],
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: cardColor,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  'Monthly Comparison',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                Container(height: 200, child: _buildSummaryBarChart(provider)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(Color primaryColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          crossAxisCount: 4,
+          childAspectRatio: 1,
+          children: [
+            _buildQuickActionButton(
+              Icons.point_of_sale,
+              'New Sale',
+              primaryColor,
+              () => showAddSaleForm(context),
+            ),
+            _buildQuickActionButton(
+              Icons.shopping_basket,
+              'Purchase',
+              primaryColor,
+              () => showAddPurchaseForm(context),
+            ),
+            _buildQuickActionButton(
+              Icons.money_off,
+              'Expense',
+              primaryColor,
+              () => showAddSpentForm(context),
+            ),
+            _buildQuickActionButton(
+              Icons.credit_card,
+              'Debt',
+              primaryColor,
+              () => showAddDebtForm(context),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionButton(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          SizedBox(height: 8),
+          Text(label, style: TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity(Color cardColor, Color textColor) {
+    final recentActivities = [
+      {'type': 'Sale', 'amount': '15,000 RWF', 'time': '2 mins ago'},
+      {'type': 'Purchase', 'amount': '25,000 RWF', 'time': '1 hour ago'},
+      {'type': 'Expense', 'amount': '5,000 RWF', 'time': '3 hours ago'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Recent Activity',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            TextButton(child: Text('View All'), onPressed: () {}),
+          ],
+        ),
+        SizedBox(height: 12),
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: cardColor,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: recentActivities
+                  .map((activity) => _buildActivityItem(activity, textColor))
+                  .toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityItem(Map<String, String> activity, Color textColor) {
+    IconData icon;
+    Color color;
+
+    switch (activity['type']) {
+      case 'Sale':
+        icon = Icons.shopping_cart;
+        color = Colors.green;
+        break;
+      case 'Purchase':
+        icon = Icons.shopping_bag;
+        color = Colors.blue;
+        break;
+      default:
+        icon = Icons.money_off;
+        color = Colors.orange;
+    }
+
+    return ListTile(
+      leading: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        activity['type']!,
+        style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+      ),
+      subtitle: Text(
+        activity['time']!,
+        style: TextStyle(color: textColor.withOpacity(0.6)),
+      ),
+      trailing: Text(
+        activity['amount']!,
+        style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+      ),
+    );
+  }
+
+  Widget _buildBottomAppBar(Color primaryColor) {
+    return BottomAppBar(
+      shape: CircularNotchedRectangle(),
+      notchMargin: 8.0,
+      color: primaryColor,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          IconButton(
+            icon: Icon(Icons.home, color: Colors.white, size: 28),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(Icons.bar_chart, color: Colors.white, size: 28),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(Icons.settings, color: Colors.white, size: 28),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(Icons.person, color: Colors.white, size: 28),
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryBarChart(Inventoryprovider provider) {
+    final maxAmount = [
+      provider.salesAmount,
+      provider.purchasesAmount,
+      provider.spentsAmount,
+      provider.debtsAmount,
+    ].reduce((a, b) => a > b ? a : b);
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxAmount > 0 ? maxAmount * 1.2 : 1000,
+        barTouchData: BarTouchData(enabled: true),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                final titles = ['Sales', 'Purchase', 'Spent', 'Debts'];
+                return Text(titles[value.toInt()]);
+              },
+              interval: 1,
+            ),
+          ),
+        ),
+        barGroups: [
+          BarChartGroupData(
+            x: 0,
+            barRods: [
+              BarChartRodData(
+                toY: provider.salesAmount > 0 ? provider.salesAmount : 0,
+                color: Colors.blue,
+              ),
+            ],
+          ),
+          BarChartGroupData(
+            x: 1,
+            barRods: [
+              BarChartRodData(
+                toY: provider.purchasesAmount > 0
+                    ? provider.purchasesAmount
+                    : 0,
+                color: Colors.green,
+              ),
+            ],
+          ),
+          BarChartGroupData(
+            x: 2,
+            barRods: [
+              BarChartRodData(
+                toY: provider.spentsAmount > 0 ? provider.spentsAmount : 0,
+                color: Colors.orange,
+              ),
+            ],
+          ),
+          BarChartGroupData(
+            x: 3,
+            barRods: [
+              BarChartRodData(
+                toY: provider.debtsAmount > 0 ? provider.debtsAmount : 0,
+                color: Colors.red,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showActionMenu() {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final Offset buttonPosition = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        buttonPosition.dx + (overlay.size.width / 2) - 85,
+        buttonPosition.dy + 613,
+        overlay.size.width - buttonPosition.dx,
+        overlay.size.height - buttonPosition.dy,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'Sale',
+          child: Row(
+            children: [
+              Icon(Icons.shopping_cart, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Sale', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'Purchase',
+          child: Row(
+            children: [
+              Icon(Icons.shopping_bag, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Purchase', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'Expense',
+          child: Row(
+            children: [
+              Icon(Icons.money_off, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Expense', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'Debt',
+          child: Row(
+            children: [
+              Icon(Icons.credit_card, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Debt', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+      ],
+      color: Theme.of(context).primaryColor,
+    ).then((value) {
+      if (!mounted) return;
+      if (value == 'Sale') showAddSaleForm(context);
+      if (value == 'Purchase') showAddPurchaseForm(context);
+      if (value == 'Expense') showAddSpentForm(context);
+      if (value == 'Debt') showAddDebtForm(context);
+    });
   }
 
   Future<void> _selectDateForField(
@@ -539,223 +789,40 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         context,
         listen: false,
       );
-      await inventoryProvider.refreshDashboardData(
+      final success = await inventoryProvider.refreshDashboardData(
         startDate: startDate,
         endDate: endDate,
       );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Data refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      // If date parsing fails, refresh with current date
       final inventoryProvider = Provider.of<Inventoryprovider>(
         context,
         listen: false,
       );
-      await inventoryProvider.refreshDashboardData();
+      final success = await inventoryProvider.refreshDashboardData();
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Data refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
-  void _onDateChanged() {
-    // Only refresh if both dates are set
-    if (_startDateController.text.isNotEmpty &&
-        _endDateController.text.isNotEmpty) {
-      _refreshDashboardWithDateRange();
-    }
-  }
-
-  Widget _buildCardRow(List<Map<String, dynamic>> cards) {
-    return Row(
-      children: [
-        Container(
-          width: 370,
-          height: 100,
-          margin: const EdgeInsets.only(top: 5, left: 20, right: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Row(
-              children: cards.map((data) {
-                return _buildCard(
-                  data['title'] as String,
-                  data['amount'] as String,
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBigRow(String title, String amount) {
-    return Row(
-      children: [
-        Container(
-          width: 370,
-          height: 100,
-          margin: const EdgeInsets.only(top: 5, left: 20, right: 20),
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 28,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  amount,
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Pie Chart Widget
-  Widget _buildSummaryPieChart(Inventoryprovider inventoryProvider) {
-    return SizedBox(
-      height: 200,
-      child: PieChart(
-        PieChartData(
-          sections: [
-            PieChartSectionData(
-              value: inventoryProvider.salesAmount > 0
-                  ? inventoryProvider.salesAmount
-                  : 1,
-              title: 'Sales',
-              color: Colors.blue,
-              radius: 50,
-            ),
-            PieChartSectionData(
-              value: inventoryProvider.purchasesAmount > 0
-                  ? inventoryProvider.purchasesAmount
-                  : 1,
-              title: 'Purchase',
-              color: Colors.green,
-              radius: 50,
-            ),
-            PieChartSectionData(
-              value: inventoryProvider.spentsAmount > 0
-                  ? inventoryProvider.spentsAmount
-                  : 1,
-              title: 'Spent',
-              color: Colors.orange,
-              radius: 50,
-            ),
-            PieChartSectionData(
-              value: inventoryProvider.debtsAmount > 0
-                  ? inventoryProvider.debtsAmount
-                  : 1,
-              title: 'Debts',
-              color: Colors.red,
-              radius: 50,
-            ),
-          ],
-          sectionsSpace: 2,
-          centerSpaceRadius: 30,
-        ),
-      ),
-    );
-  }
-
-  // Bar Chart Widget
-  Widget _buildSummaryBarChart(Inventoryprovider inventoryProvider) {
-    // Calculate max Y value for better chart scaling
-    final maxAmount = [
-      inventoryProvider.salesAmount,
-      inventoryProvider.purchasesAmount,
-      inventoryProvider.spentsAmount,
-      inventoryProvider.debtsAmount,
-    ].reduce((a, b) => a > b ? a : b);
-
-    return SizedBox(
-      height: 200,
-      width: 350,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxAmount > 0 ? maxAmount * 1.2 : 1000, // Add 20% padding
-          barTouchData: BarTouchData(enabled: true),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (double value, TitleMeta meta) {
-                  final titles = ['Sales', 'Purchase', 'Spent', 'Debts'];
-                  return Text(titles[value.toInt()]);
-                },
-                interval: 1,
-              ),
-            ),
-          ),
-          barGroups: [
-            BarChartGroupData(
-              x: 0,
-              barRods: [
-                BarChartRodData(
-                  toY: inventoryProvider.salesAmount > 0
-                      ? inventoryProvider.salesAmount
-                      : 0,
-                  color: Colors.blue,
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 1,
-              barRods: [
-                BarChartRodData(
-                  toY: inventoryProvider.purchasesAmount > 0
-                      ? inventoryProvider.purchasesAmount
-                      : 0,
-                  color: Colors.green,
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 2,
-              barRods: [
-                BarChartRodData(
-                  toY: inventoryProvider.spentsAmount > 0
-                      ? inventoryProvider.spentsAmount
-                      : 0,
-                  color: Colors.orange,
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 3,
-              barRods: [
-                BarChartRodData(
-                  toY: inventoryProvider.debtsAmount > 0
-                      ? inventoryProvider.debtsAmount
-                      : 0,
-                  color: Colors.red,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // [Keep all your existing form methods like showAddSaleForm, showAddPurchaseForm, etc.]
+  // These would be included exactly as they were in your original file
+  // I've omitted them here for brevity but they should be included in the actual file
   void showAddSaleForm(BuildContext context) async {
     final inventoryProvider = Provider.of<Inventoryprovider>(
       context,
@@ -778,7 +845,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
     List<Map<String, dynamic>> chartItems = [];
     // Clear all input fields
-    void clearFields() {
+    void clearSalesFields() {
       searchController.clear();
       descriptionController.clear();
       quantityController.clear();
@@ -786,7 +853,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       totalPriceController.clear();
       currentPriceController = '';
       currentQuantityController = '';
+    }
 
+    void clearPaymentFields() {
       // Clear payment method fields
       _cashController.clear();
       _momoController.clear();
@@ -1017,11 +1086,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                       sum + (item['total_price'] as int),
                                 );
                                 totalPrice = currentTotal;
-
-                                clearFields();
-                                formKey.currentState?.reset();
                               });
                             }
+                            clearSalesFields();
+                            formKey.currentState?.reset();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[900],
@@ -1341,76 +1409,21 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                     if (_debtSelected) ...[
                                       SizedBox(width: 10),
                                       Expanded(
-                                        child: Column(
-                                          children: [
-                                            TextFormField(
-                                              controller: _debtController,
-                                              decoration: InputDecoration(
-                                                labelText: 'Debt Amount',
-                                                prefixText: 'RWF ',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              onChanged: (value) {
-                                                setModalState(() {});
-                                              },
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            showAddDebtForm(context);
+                                          },
+
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.deepOrange,
+                                          ),
+                                          child: Text(
+                                            'Add Debt Information',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18,
                                             ),
-                                            SizedBox(height: 10),
-                                            TextFormField(
-                                              controller:
-                                                  _debtCustomerNameController,
-                                              decoration: InputDecoration(
-                                                labelText: 'Customer Name',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            ),
-                                            SizedBox(height: 10),
-                                            TextFormField(
-                                              controller:
-                                                  _debtCustomerPhoneController,
-                                              decoration: InputDecoration(
-                                                labelText: 'Customer Phone',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              keyboardType: TextInputType.phone,
-                                            ),
-                                            SizedBox(height: 10),
-                                            TextFormField(
-                                              controller:
-                                                  _debtCustomerEmailController,
-                                              decoration: InputDecoration(
-                                                labelText: 'Customer Email',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              keyboardType:
-                                                  TextInputType.emailAddress,
-                                            ),
-                                            SizedBox(height: 10),
-                                            TextFormField(
-                                              controller:
-                                                  _debtCustomerAddressController,
-                                              decoration: InputDecoration(
-                                                labelText: 'Customer Address',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            ),
-                                            SizedBox(height: 10),
-                                            TextFormField(
-                                              controller:
-                                                  _debtProposedDateController,
-                                              decoration: InputDecoration(
-                                                labelText:
-                                                    'Proposed Payment Date',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              readOnly: true,
-                                              onTap: () => _selectDate(
-                                                context,
-                                                setModalState,
-                                              ),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1441,7 +1454,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             //   ),
                           ],
                         ],
-                        // Submit all button
+                        SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () async {
                             if (chartItems.isEmpty) {
@@ -1528,32 +1541,18 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             SaleData saleData = SaleData(
                               items: saleItems,
                               paymentInfo: paymentInfo,
-                              debtData: _debtSelected
-                                  ? {
-                                      'customer_name':
-                                          _debtCustomerNameController.text,
-                                      'customer_phone':
-                                          _debtCustomerPhoneController.text,
-                                      'customer_email':
-                                          _debtCustomerEmailController.text,
-                                      'customer_address':
-                                          _debtCustomerAddressController.text,
-                                      'debt_amount':
-                                          int.tryParse(_debtController.text) ??
-                                          0,
-                                      'proposed_payment_date':
-                                          _debtProposedDateController.text,
-                                    }
-                                  : null,
+                              debtData: _debtSelected ? debtData : null,
                             );
 
                             // Call the new addSaleRecord method
                             final success = await inventoryProvider
                                 .addSaleRecord(saleData);
-
+                            chartItems.clear();
+                            clearSalesFields();
+                            clearPaymentFields();
+                            Navigator.pop(context);
                             if (success) {
-                              Navigator.pop(context);
-                              clearFields(); // Clear all fields after successful sale
+                              // Clear all fields after successful sale
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Center(
@@ -1569,7 +1568,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                   duration: Duration(seconds: 2),
                                 ),
                               );
-                              chartItems.clear();
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -1842,7 +1840,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             backgroundColor: Colors.green[900],
                           ),
                           child: Text(
-                            'Add to Chart',
+                            'Add to List',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white,
@@ -1998,7 +1996,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         SizedBox(height: 20),
                         TextFormField(
                           controller: _dateController,
-                          onTap: () => _selectDate(context, setModalState),
+                          onTap: () => _selectDate(
+                            context,
+                            setModalState,
+                            _dateController,
+                          ),
                           readOnly: true,
                           decoration: InputDecoration(
                             labelText: 'Date of Spent Record',
@@ -2087,13 +2089,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
   void showAddDebtForm(BuildContext context) {
     final formKey = GlobalKey<FormState>();
-    final customerNameController = TextEditingController();
-    final customerPhoneController = TextEditingController();
-    final customerEmailController = TextEditingController();
-    final customerAddressController = TextEditingController();
-    final debtAmountController = TextEditingController();
-    final proposedDateController = TextEditingController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2120,7 +2115,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             'New Debt Record',
                             style: TextStyle(
                               fontSize: 24,
-                              color: Colors.blue[900],
+                              color: Colors.deepOrange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -2129,7 +2124,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Customer Name
                         TextFormField(
-                          controller: customerNameController,
+                          controller: _debtCustomerNameController,
                           decoration: InputDecoration(
                             labelText: 'Customer Name *',
                             border: OutlineInputBorder(
@@ -2147,7 +2142,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Customer Phone
                         TextFormField(
-                          controller: customerPhoneController,
+                          controller: _debtCustomerPhoneController,
                           decoration: InputDecoration(
                             labelText: 'Customer Phone *',
                             border: OutlineInputBorder(
@@ -2166,7 +2161,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Customer Email
                         TextFormField(
-                          controller: customerEmailController,
+                          controller: _debtCustomerEmailController,
                           decoration: InputDecoration(
                             labelText: 'Customer Email',
                             border: OutlineInputBorder(
@@ -2179,7 +2174,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Customer Address
                         TextFormField(
-                          controller: customerAddressController,
+                          controller: _debtCustomerAddressController,
                           decoration: InputDecoration(
                             labelText: 'Customer Address',
                             border: OutlineInputBorder(
@@ -2191,7 +2186,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Debt Amount
                         TextFormField(
-                          controller: debtAmountController,
+                          controller: _debtAmountController,
                           decoration: InputDecoration(
                             labelText: 'Debt Amount (RWF) *',
                             border: OutlineInputBorder(
@@ -2213,7 +2208,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
                         // Proposed Payment Date
                         TextFormField(
-                          controller: proposedDateController,
+                          controller: _debtProposedDateController,
                           decoration: InputDecoration(
                             labelText: 'Proposed Payment Date *',
                             border: OutlineInputBorder(
@@ -2221,7 +2216,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             ),
                           ),
                           readOnly: true,
-                          onTap: () => _selectDate(context, setModalState),
+                          onTap: () => _selectDate(
+                            context,
+                            setModalState,
+                            _debtProposedDateController,
+                          ),
                         ),
                         SizedBox(height: 20),
 
@@ -2230,55 +2229,28 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
                               try {
-                                final debtData = {
-                                  'names': customerNameController.text,
-                                  'phone': customerPhoneController.text,
+                                debtData = {
+                                  'names': _debtCustomerNameController.text,
+                                  'phone': _debtCustomerPhoneController.text,
                                   'email':
-                                      customerEmailController.text.isNotEmpty
-                                      ? customerEmailController.text
+                                      _debtCustomerEmailController
+                                          .text
+                                          .isNotEmpty
+                                      ? _debtCustomerEmailController.text
                                       : null,
                                   'address':
-                                      customerAddressController.text.isNotEmpty
-                                      ? customerAddressController.text
+                                      _debtCustomerAddressController
+                                          .text
+                                          .isNotEmpty
+                                      ? _debtCustomerAddressController.text
                                       : null,
                                   'debt_amount': double.parse(
-                                    debtAmountController.text,
+                                    _debtAmountController.text,
                                   ),
                                   'proposed_refund_date':
-                                      proposedDateController.text,
+                                      _debtProposedDateController.text,
                                 };
-
-                                final inventoryProvider =
-                                    Provider.of<Inventoryprovider>(
-                                      context,
-                                      listen: false,
-                                    );
-
-                                final result = await DatabaseHelper.instance
-                                    .insertDebt(debtData);
-                                if (result > 0) {
-                                  // Refresh debts amount
-                                  await inventoryProvider.getDebtsAmount();
-
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Debt record saved successfully',
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Failed to save debt record',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
+                                Navigator.pop(context);
                               } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -2290,7 +2262,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[900],
+                            backgroundColor: Colors.deepOrange,
                             minimumSize: Size(double.infinity, 50),
                           ),
                           child: Text(

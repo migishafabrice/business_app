@@ -1,5 +1,5 @@
-import 'package:business_app/tools/Database_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:business_app/tools/Database_helper.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -9,6 +9,7 @@ class Register extends StatefulWidget {
 
 class _RegisterState extends State<Register> {
   bool hidden = true;
+  bool isLoading = false;
   final formKey = GlobalKey<FormState>();
   final TextEditingController _shopNameController = TextEditingController();
   final TextEditingController _shopAddressController = TextEditingController();
@@ -17,319 +18,525 @@ class _RegisterState extends State<Register> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _rPasswordController = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      // appBar:AppBar(
-      //   title: Text('Register',
-      //   style: TextStyle(fontSize: 24, color: Colors.blue[900],fontWeight: FontWeight.bold),),
-      // ),
-      body: Stack(
-        children: [
-          Container(
-            // width: double.infinity,
-            // height: double.infinity,
-            color: Colors.blue[900],
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.elliptical(150, 250),
-                  bottomRight: Radius.elliptical(100, 250),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue[900]!, Colors.blue[800]!],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Background decorative elements
+            Positioned(
+              top: -50,
+              right: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
                 ),
               ),
+            ),
+            Positioned(
+              bottom: -100,
+              left: -50,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+            ),
 
-              child: Padding(
-                padding: const EdgeInsets.only(top: 100),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Welcome',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Text(
-                        'To continue using this app, please Register',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.normal,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Padding(
-                        padding: EdgeInsets.only(left: 30, right: 30),
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.only(
-                            bottom:
-                                MediaQuery.of(context).viewInsets.bottom + 20,
+            // Main content
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo and welcome text
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
                           ),
-                          child: Form(
-                            key: formKey,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                TextFormField(
-                                  controller: _shopNameController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Name of Shop',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  validator: (value) => value!.isEmpty
-                                      ? 'Please enter the name of your shop'
-                                      : null,
+                          child: Icon(
+                            Icons.business,
+                            size: 60,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Register your business to get started',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // Registration form
+                    Container(
+                      padding: const EdgeInsets.all(25),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          children: [
+                            // Business Information Section
+                            Text(
+                              'Business Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Shop Name
+                            TextFormField(
+                              controller: _shopNameController,
+                              decoration: InputDecoration(
+                                labelText: 'Shop Name',
+                                prefixIcon: Icon(
+                                  Icons.store,
+                                  color: Colors.blue[900],
                                 ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _shopAddressController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Address of Shop',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
                                   ),
-                                  validator: (value) => value!.isEmpty
-                                      ? 'Please enter the address of your shop'
-                                      : null,
                                 ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _emailController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Email',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
                                   ),
-                                  validator: (value) {
-                                    if (value!.isEmpty) {
-                                      return 'Please enter your email';
-                                    } else if (!value.contains('@') ||
-                                        (!value.contains('.'))) {
-                                      return 'Please enter a valid email';
-                                    } else {
-                                      return null;
-                                    }
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter your shop name'
+                                  : null,
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Shop Address
+                            TextFormField(
+                              controller: _shopAddressController,
+                              decoration: InputDecoration(
+                                labelText: 'Shop Address',
+                                prefixIcon: Icon(
+                                  Icons.location_on,
+                                  color: Colors.blue[900],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter your shop address'
+                                  : null,
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Contact Information Section
+                            Text(
+                              'Contact Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Email
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                prefixIcon: Icon(
+                                  Icons.email,
+                                  color: Colors.blue[900],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please enter your email';
+                                } else if (!value.contains('@') ||
+                                    !value.contains('.')) {
+                                  return 'Please enter a valid email';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Phone
+                            TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              decoration: InputDecoration(
+                                labelText: 'Phone',
+                                prefixIcon: Icon(
+                                  Icons.phone,
+                                  color: Colors.blue[900],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please enter your phone number';
+                                } else if (value.length < 10) {
+                                  return 'Phone number must be at least 10 digits';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Account Information Section
+                            Text(
+                              'Account Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Username
+                            TextFormField(
+                              controller: _usernameController,
+                              decoration: InputDecoration(
+                                labelText: 'Username',
+                                prefixIcon: Icon(
+                                  Icons.person,
+                                  color: Colors.blue[900],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please choose a username'
+                                  : null,
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Password
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: hidden,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                prefixIcon: Icon(
+                                  Icons.lock,
+                                  color: Colors.blue[900],
+                                ),
+                                suffixIcon: IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      hidden = !hidden;
+                                    });
                                   },
-                                ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _phoneController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Phone',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value!.isEmpty) {
-                                      return 'Please enter your phone number';
-                                    } else if (value.length < 10) {
-                                      return 'Phone number must be at least 10 digits';
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _usernameController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Username',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                  icon: Icon(
+                                    hidden
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: Colors.grey,
                                   ),
                                 ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _passwordController,
-                                  obscureText: hidden,
-                                  obscuringCharacter: '*',
-                                  decoration: InputDecoration(
-                                    labelText: 'Password',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    suffixIcon: IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          hidden = !hidden;
-                                        });
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please enter a password';
+                                } else if (value.length < 6) {
+                                  return 'Password must be at least 6 characters';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Confirm Password
+                            TextFormField(
+                              controller: _rPasswordController,
+                              obscureText: hidden,
+                              decoration: InputDecoration(
+                                labelText: 'Confirm Password',
+                                prefixIcon: Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.blue[900],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue[900]!,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please confirm your password';
+                                } else if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 25),
+
+                            // Register button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: isLoading
+                                    ? null
+                                    : () async {
+                                        if (formKey.currentState!.validate()) {
+                                          setState(() {
+                                            isLoading = true;
+                                          });
+                                          await _registerUser();
+                                          setState(() {
+                                            isLoading = false;
+                                          });
+                                        }
                                       },
-                                      icon: Icon(
-                                        hidden
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
-                                      ),
-                                    ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue[900],
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  validator: (value) {
-                                    if (value!.isEmpty) {
-                                      return 'Please enter a password';
-                                    } else if (value.length < 6) {
-                                      return 'Password must be at least 6 characters';
-                                    } else {
-                                      return null;
-                                    }
-                                  },
+                                  elevation: 5,
                                 ),
-                                SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _rPasswordController,
-                                  obscureText: hidden,
-                                  obscuringCharacter: '*',
-                                  decoration: InputDecoration(
-                                    labelText: 'Re-Type Password',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    suffixIcon: IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          hidden = !hidden;
-                                        });
-                                      },
-                                      icon: Icon(
-                                        hidden
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        'REGISTER',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value!.isEmpty) {
-                                      return 'Please re-enter your password';
-                                    } else if (value !=
-                                        _passwordController.text) {
-                                      return 'Passwords do not match';
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                ),
-                                SizedBox(height: 20),
-                                _authButtons(
-                                  context,
-                                  "Register",
-                                  "assets/images/unlock.png",
-                                  Colors.blue[900],
-                                  "Login",
-                                  _registerUser,
-                                ),
-                                SizedBox(height: 10),
-                                _authButtons(
-                                  context,
-                                  "Register with Gmail",
-                                  "assets/images/gmail.png",
-                                  Colors.blue[900],
-                                  "Dashboard",
-                                  _registerUser,
-                                ),
-                                SizedBox(height: 10),
-                                _authButtons(
-                                  context,
-                                  "Register with Facebook",
-                                  "assets/images/facebook.png",
-                                  Colors.blue[900],
-                                  "Dashboard",
-                                  _registerUser,
-                                ),
-                              ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Login prompt
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Already have an account?",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/Login');
+                          },
+                          child: Text(
+                            'Login',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _authButtons(
-    BuildContext context,
-    buttonName,
-    imagePath,
-    color,
-    route,
-    Future<bool> Function() nextAction,
-  ) {
-    return SizedBox(
-      width: 500,
-      height: 50,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color, // Blue background for entire container
-          borderRadius: BorderRadius.circular(32), // Rounded corners
-        ),
-        child: ElevatedButton(
-          onPressed: () async {
-            final success = await nextAction();
-            if (success) {
-              // ignore: use_build_context_synchronously
-              Navigator.pushNamed(context, "/$route");
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Registration failed',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent, // Makes button transparent
-            shadowColor: Colors.transparent, // Removes shadow
-            padding: EdgeInsets.zero, // Removes default padding
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(32), // Match container radius
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min, // Makes row take minimum space
-            children: [
-              Padding(
-                padding: EdgeInsets.all(12),
-                child: Image.asset(imagePath, width: 48, height: 48),
-              ),
-              Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Text(
-                  buttonName,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Future<bool> _registerUser() async {
+  Future<void> _registerUser() async {
     if (formKey.currentState!.validate()) {
       Map<String, dynamic> user = {
         'shopname': _shopNameController.text,
@@ -339,22 +546,66 @@ class _RegisterState extends State<Register> {
         'username': _usernameController.text,
         'password': _passwordController.text,
       };
-      int id = await DatabaseHelper.instance.insertUser(user);
-      SnackBar snackBar = SnackBar(
-        content: Text('User registered with ID: $id'),
-        duration: Duration(seconds: 2),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
-      formKey.currentState!.reset();
-      _shopNameController.clear();
-      _shopAddressController.clear();
-      _emailController.clear();
-      _phoneController.clear();
-      _usernameController.clear();
-      _passwordController.clear();
-      _rPasswordController.clear();
-      return id > 0 ? true : false;
+
+      try {
+        int id = await DatabaseHelper.instance.insertUser(user);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 10),
+                Text(
+                  "Registration successful!",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // Clear form after successful registration
+        formKey.currentState!.reset();
+        _shopNameController.clear();
+        _shopAddressController.clear();
+        _emailController.clear();
+        _phoneController.clear();
+        _usernameController.clear();
+        _passwordController.clear();
+        _rPasswordController.clear();
+
+        // Navigate to login after a brief delay
+        await Future.delayed(Duration(seconds: 2));
+        Navigator.pushNamed(context, '/Login');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red[400],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 10),
+                Text(
+                  "Registration failed. Please try again.",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
-    return false;
   }
 }

@@ -198,13 +198,13 @@ class Inventoryprovider with ChangeNotifier {
           try {
             final debtRecord = {
               'invoice_id': invoiceId,
-              'names': saleData.debtData!['customer_name'],
-              'email': saleData.debtData!['customer_email'],
-              'phone': saleData.debtData!['customer_phone'],
-              'address': saleData.debtData!['customer_address'],
+              'names': saleData.debtData!['names'],
+              'email': saleData.debtData!['email'],
+              'phone': saleData.debtData!['phone'],
+              'address': saleData.debtData!['address'],
               'debt_amount': saleData.debtData!['debt_amount'],
               'proposed_refund_date':
-                  saleData.debtData!['proposed_payment_date'],
+                  saleData.debtData!['proposed_refund_date'],
               'created_at': saleData.saleDate.toIso8601String(),
             };
 

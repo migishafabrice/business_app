@@ -63,6 +63,7 @@ class PaymentInfo {
   final int otherAmount;
   final int debtAmount;
   final String? otherPaymentName;
+  final DateTime? paymentDate;
 
   PaymentInfo({
     required this.cashSelected,
@@ -76,6 +77,7 @@ class PaymentInfo {
     required this.otherAmount,
     required this.debtAmount,
     this.otherPaymentName,
+    this.paymentDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -131,8 +133,8 @@ class Inventoryprovider with ChangeNotifier {
   double get purchasesAmount => _purchases;
   double get spentsAmount => _spents;
   double get debtsAmount => _debts;
-  Future<bool> addPurchaseRecord(Map<String, dynamic> item) async {
-    int row = await DatabaseHelper.instance.insertPurchase(item);
+  Future<bool> addPurchaseRecord(List<Map<String, dynamic>> items) async {
+    int row = await DatabaseHelper.instance.insertPurchase(items);
     await getInventoryItems();
     return row > 0 ? true : false;
   }
@@ -146,6 +148,9 @@ class Inventoryprovider with ChangeNotifier {
         final invoiceData = {
           'mode': saleData.paymentInfo.paymentMode,
           'paid': saleData.paymentInfo.isPaymentComplete ? 'Yes' : 'No',
+          'date_at':
+              saleData.paymentInfo.paymentDate?.toIso8601String() ??
+              DateTime.now().toIso8601String(),
         };
 
         // Insert invoice and get invoice ID
@@ -168,8 +173,9 @@ class Inventoryprovider with ChangeNotifier {
             final saleRecord = {
               'invoice_id': invoiceId,
               'product_id': product['id'],
-              'quantity': item.quantity,
-              'price': item.unitPrice,
+              'sale_quantity': item.quantity,
+              'unit_sale_price': item.unitPrice,
+              // ignore: unnecessary_null_comparison
               'created_at': saleData.saleDate.toIso8601String(),
             };
 
@@ -223,7 +229,6 @@ class Inventoryprovider with ChangeNotifier {
         return allSuccess;
       });
     } catch (e) {
-      print('Error in addSaleRecord: $e');
       return false;
     } finally {
       // Always refresh data after the operation, regardless of success/failure
@@ -313,13 +318,12 @@ class Inventoryprovider with ChangeNotifier {
         getPurchasesAmount(startDate: startDate, endDate: endDate),
         getSpentsAmount(startDate: startDate, endDate: endDate),
         getDebtsAmount(startDate: startDate, endDate: endDate),
+        getDebts(),
       ]);
       // Ensure listeners are notified after all data is refreshed
       notifyListeners();
       return true;
     } catch (e) {
-      // print('Error refreshing dashboard data: $e');
-      // Still notify listeners even if there's an error to update UI
       notifyListeners();
       return false;
     }
@@ -334,21 +338,21 @@ class Inventoryprovider with ChangeNotifier {
         getPurchasesAmount(),
         getSpentsAmount(),
         getDebtsAmount(),
+        getDebts(),
       ]);
       // Ensure listeners are notified
       notifyListeners();
     } catch (e) {
-      print('Error refreshing data: $e');
+      notifyListeners();
     }
   }
 
-  // void removeItem(String item) {
-  //   _inventoryItems.remove(item);
-  //   notifyListeners();
-  // }
-
-  // void clearInventory() {
-  //   _inventoryItems.clear();
-  //   notifyListeners();
-  // }
+  Future<List<Map<String, dynamic>>> getDebts() async {
+    try {
+      final debts = await DatabaseHelper.instance.getAllDebts();
+      return debts;
+    } catch (e) {
+      return [];
+    }
+  }
 }

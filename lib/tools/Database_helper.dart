@@ -65,6 +65,7 @@ class DatabaseHelper {
         product_id INTEGER NOT NULL,
         unit_price REAL NOT NULL,
         quantity INTEGER DEFAULT 0,
+        date_at DATE NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -74,6 +75,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         mode TEXT NOT NULL,
         paid TEXT NOT NULL,
+        date_at DATE NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -82,8 +84,8 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        price REAL NOT NULL,
+        sale_quantity INTEGER NOT NULL,
+        unit_sale_price REAL NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -116,7 +118,7 @@ class DatabaseHelper {
         reason TEXT NOT NULL,
         reason_description TEXT,
         spent_amount REAL NOT NULL,
-        date Date NOT NULL,
+        date_at Date NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -133,55 +135,65 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> insertPurchase(Map<String, dynamic> purchase) async {
+  Future<int> insertPurchase(List<Map<String, dynamic>> purchases) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
-    purchase['created_at'] = now; // Add created_at field
+    int result = 0;
 
-    // First check if the product already exists
-    final existingProduct = await db.query(
-      'products',
-      where: 'name = ?',
-      whereArgs: [purchase['name']],
-      limit: 1,
-    );
+    for (final purchase in purchases) {
+      final updatedPurchase = {
+        ...purchase,
+        'created_at': now, // Add created_at field
+      };
 
-    int productId;
-    int result;
-
-    if (existingProduct.isNotEmpty) {
-      // Product exists - update quantity and price according to rules
-      final existing = existingProduct.first;
-      productId = existing['id'] as int;
-      final newQuantity =
-          (existing['quantity'] as int) + (purchase['quantity'] as int);
-      final newPrice = purchase['unit_price'] > existing['unit_price']
-          ? purchase['unit_price']
-          : existing['unit_price'];
-
-      result = await db.update(
+      final existingProduct = await db.query(
         'products',
-        {'quantity': newQuantity, 'unit_price': newPrice, 'created_at': now},
         where: 'name = ?',
-        whereArgs: [purchase['name']],
+        whereArgs: [updatedPurchase['name']],
+        limit: 1,
       );
-    } else {
-      // Product doesn't exist - insert new record
-      result = await db.insert(
-        'products',
-        purchase,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      productId = result; // For SQLite, the insert returns the new row id
-    }
 
-    // Insert into history table regardless of whether it was an update or insert
-    await db.insert('products_history', {
-      'product_id': productId,
-      'unit_price': purchase['unit_price'],
-      'quantity': purchase['quantity'],
-      'created_at': now,
-    });
+      int productId;
+
+      if (existingProduct.isNotEmpty) {
+        // Product exists - update quantity and price according to rules
+        final existing = existingProduct.first;
+        productId = existing['id'] as int;
+        final newQuantity =
+            (existing['quantity'] as int) + (updatedPurchase['quantity'])
+                as int;
+        final newPrice = updatedPurchase['unit_price'] > existing['unit_price']
+            ? updatedPurchase['unit_price']
+            : existing['unit_price'];
+
+        result = await db.update(
+          'products',
+          {'quantity': newQuantity, 'unit_price': newPrice, 'created_at': now},
+          where: 'id = ?',
+          whereArgs: [productId],
+        );
+      } else {
+        // Product doesn't exist - insert new record
+        final date = updatedPurchase['date_at'];
+        updatedPurchase.remove('date_at'); // Remove date_at from purchase data
+        productId = await db.insert(
+          'products',
+          updatedPurchase,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        updatedPurchase['date_at'] = date;
+        result = productId; // For SQLite, the insert returns the new row id
+      }
+
+      // Insert into history table regardless of whether it was an update or insert
+      await db.insert('products_history', {
+        'product_id': productId,
+        'unit_price': updatedPurchase['unit_price'],
+        'quantity': updatedPurchase['quantity'],
+        'date_at': updatedPurchase['date_at'],
+        'created_at': now,
+      });
+    }
 
     return result;
   }
@@ -382,19 +394,21 @@ class DatabaseHelper {
     final db = await DatabaseHelper.instance.database;
 
     if (startDate != null && endDate != null) {
-      // Filter by date range
+      // Filter by date_at range
 
       final String startDateStr = DateFormat('yyyy-MM-dd').format(startDate);
       final String endDateStr = DateFormat('yyyy-MM-dd').format(endDate);
       final result = await db.rawQuery(
-        "SELECT SUM(price * quantity) AS total_sales FROM sales WHERE DATE(created_at) BETWEEN ? AND ?",
+        "SELECT SUM(s.unit_sale_price * s.sale_quantity) AS total_sales,"
+        "s.invoice_id,i.date_at,i.id FROM sales s JOIN  invoices i ON s.invoice_id = i.id "
+        "WHERE DATE(i.date_at) BETWEEN ? AND ? GROUP BY s.invoice_id, i.date_at, i.id",
         [startDateStr, endDateStr],
       );
       return result.isNotEmpty
           ? (result.first['total_sales'] as double?) ?? 0
           : 0;
     } else {
-      // Default to today's date
+      // Default to today's date_at
       final String formattedDate = DateFormat(
         'yyyy-MM-dd',
       ).format(DateTime.now());
@@ -415,7 +429,7 @@ class DatabaseHelper {
     final db = await DatabaseHelper.instance.database;
 
     if (startDate != null && endDate != null) {
-      // Filter by date range
+      // Filter by date_at range
       final String startDateStr = DateFormat('yyyy-MM-dd').format(startDate);
       final String endDateStr = DateFormat('yyyy-MM-dd').format(endDate);
       final result = await db.rawQuery(
@@ -426,7 +440,7 @@ class DatabaseHelper {
           ? (result.first['total_purchases'] as double?) ?? 0
           : 0;
     } else {
-      // Default to today's date
+      // Default to today's date_at
       final String formattedDate = DateFormat(
         'yyyy-MM-dd',
       ).format(DateTime.now());
@@ -447,23 +461,23 @@ class DatabaseHelper {
     final db = await DatabaseHelper.instance.database;
 
     if (startDate != null && endDate != null) {
-      // Filter by date range
+      // Filter by date_at range
       final String startDateStr = DateFormat('yyyy-MM-dd').format(startDate);
       final String endDateStr = DateFormat('yyyy-MM-dd').format(endDate);
       final result = await db.rawQuery(
-        "SELECT SUM(spent_amount) AS total_spents FROM spents WHERE DATE(date) BETWEEN ? AND ?",
+        "SELECT SUM(spent_amount) AS total_spents FROM spents WHERE DATE(date_at) BETWEEN ? AND ?",
         [startDateStr, endDateStr],
       );
       return result.isNotEmpty
           ? (result.first['total_spents'] as double?) ?? 0
           : 0;
     } else {
-      // Default to today's date
+      // Default to today's date_at
       final String formattedDate = DateFormat(
         'yyyy-MM-dd',
       ).format(DateTime.now());
       final result = await db.rawQuery(
-        "SELECT SUM(spent_amount) AS total_spents FROM spents WHERE DATE(date) LIKE ?",
+        "SELECT SUM(spent_amount) AS total_spents FROM spents WHERE DATE(date_at) LIKE ?",
         ['%$formattedDate%'],
       );
       return result.isNotEmpty
@@ -479,7 +493,7 @@ class DatabaseHelper {
     final db = await DatabaseHelper.instance.database;
 
     if (startDate != null && endDate != null) {
-      // Filter by date range
+      // Filter by date_at range
       final String startDateStr = DateFormat('yyyy-MM-dd').format(startDate);
       final String endDateStr = DateFormat('yyyy-MM-dd').format(endDate);
       final result = await db.rawQuery(
@@ -490,7 +504,7 @@ class DatabaseHelper {
           ? (result.first['total_debts'] as double?) ?? 0
           : 0;
     } else {
-      // Default to today's date
+      // Default to today's date_at
       final String formattedDate = DateFormat(
         'yyyy-MM-dd',
       ).format(DateTime.now());
@@ -501,6 +515,67 @@ class DatabaseHelper {
       return result.isNotEmpty
           ? (result.first['total_debts'] as double?) ?? 0
           : 0;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllDebts() async {
+    final List<Map<String, dynamic>> result = [];
+    final db = await database;
+    final getDebtInfo = await db.rawQuery("SELECT * FROM debt");
+    if (getDebtInfo.isNotEmpty) {
+      print("Fetched debts from DB: $getDebtInfo");
+      for (var debt in getDebtInfo) {
+        final debtId = debt['id'] as int;
+        final paidDebts = await db.rawQuery(
+          "SELECT sum(refund_amount) as total_refunded FROM paid_debts WHERE debt_id = ?",
+          [debtId],
+        );
+        double totalRefunded = paidDebts.isNotEmpty
+            ? (paidDebts.first['total_refunded'] as double?) ?? 0
+            : 0;
+        double debtAmount = debt['debt_amount'] as double? ?? 0;
+        if (paidDebts.isEmpty || totalRefunded < debtAmount) {
+          final getSalesInfo = await db.rawQuery(
+            "SELECT * FROM sales join "
+            "products on sales.product_id = products.id WHERE sales.invoice_id = ?",
+            [debt['invoice_id']],
+          );
+          if (getSalesInfo.isNotEmpty) {
+            result.add({'salesProducts': getSalesInfo});
+          }
+          result.add({
+            'names': debt['names'],
+            'email': debt['email'],
+            'phone': debt['phone'],
+            'address': debt['address'],
+            'debt_amount': debt['debt_amount'],
+            'proposed_refund_date': debt['proposed_refund_date'],
+            'total_refunded': paidDebts.first['total_refunded'] ?? 0,
+            'rest_amount': debtAmount - totalRefunded,
+          });
+        }
+      }
+    }
+    return result;
+  }
+
+  Future<bool> deletAndecreateTables() async {
+    final db = await database;
+    try {
+      await db.execute("DROP TABLE IF EXISTS users");
+      await db.execute("DROP TABLE IF EXISTS products");
+      await db.execute("DROP TABLE IF EXISTS products_history");
+      await db.execute("DROP TABLE IF EXISTS invoices");
+      await db.execute("DROP TABLE IF EXISTS sales");
+      await db.execute("DROP TABLE IF EXISTS debt");
+      await db.execute("DROP TABLE IF EXISTS paid_debts");
+      await db.execute("DROP TABLE IF EXISTS spents");
+      // Recreate tables
+      await _onCreate(db, _databaseVersion);
+      return true;
+    } catch (e) {
+      print("Error recreating tables: $e");
+      return false;
     }
   }
 }

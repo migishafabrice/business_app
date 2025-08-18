@@ -143,6 +143,7 @@ class SplashScreen extends StatelessWidget {
 
   // Existing checkUserExist method
   Future<bool> checkUserExist(BuildContext context) async {
+    //await DatabaseHelper.instance.deletAndecreateTables();
     final hasUser = await DatabaseHelper.instance.hasAnyuser();
     if (!hasUser) {
       Future.delayed(Duration.zero, () {

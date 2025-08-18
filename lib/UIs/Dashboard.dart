@@ -29,12 +29,17 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final _debtCustomerAddressController = TextEditingController();
   final _debtAmountController = TextEditingController();
   final _debtProposedDateController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  final _debtPaymentAmountController = TextEditingController();
+  final _debtPaymentDateController = TextEditingController();
+  String _debtPaymentAmount = '';
   var debtData = <String, dynamic>{};
   DateTime? _selectedDate;
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-
+  final _dateSaleController = TextEditingController();
+  final _datePurchaseController = TextEditingController();
   bool _cashSelected = false;
   bool _momoSelected = false;
   bool _bankSelected = false;
@@ -110,7 +115,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     final isDarkMode = theme.brightness == Brightness.dark;
     final cardColor = isDarkMode ? Colors.grey[850]! : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black;
-    final primaryColor = [Colors.blue[900]!, Colors.blue[800]!];
+    final primaryColor = [Colors.blue[900]!, Colors.blue[600]!];
 
     return Scaffold(
       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
@@ -174,7 +179,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.only(left: 8, right: 8, top: 16, bottom: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -311,10 +316,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.2),
+                    color: primaryColor,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: primaryColor, size: 20),
+                  child: Icon(icon, color: Colors.white, size: 20),
                 ),
                 SizedBox(width: 8),
                 Text(
@@ -464,21 +469,21 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             ),
             _buildQuickActionButton(
               Icons.shopping_basket,
-              'Purchase',
+              'New Product',
               primaryColor,
               () => showAddPurchaseForm(context),
             ),
             _buildQuickActionButton(
               Icons.money_off,
-              'Expense',
+              'New Expense',
               primaryColor,
               () => showAddSpentForm(context),
             ),
             _buildQuickActionButton(
               Icons.credit_card,
-              'Debt',
+              'Refund Debt',
               primaryColor,
-              () => showAddDebtForm(context),
+              () => showPayDebtForm(context),
             ),
           ],
         ),
@@ -717,17 +722,17 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             children: [
               Icon(Icons.shopping_cart, color: Colors.white),
               SizedBox(width: 10),
-              Text('Sale', style: TextStyle(color: Colors.white)),
+              Text('New Sale', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
         PopupMenuItem(
-          value: 'Purchase',
+          value: 'Product',
           child: Row(
             children: [
               Icon(Icons.shopping_bag, color: Colors.white),
               SizedBox(width: 10),
-              Text('Purchase', style: TextStyle(color: Colors.white)),
+              Text('New Product', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
@@ -737,7 +742,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             children: [
               Icon(Icons.money_off, color: Colors.white),
               SizedBox(width: 10),
-              Text('Expense', style: TextStyle(color: Colors.white)),
+              Text('New Expense', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
@@ -747,18 +752,18 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             children: [
               Icon(Icons.credit_card, color: Colors.white),
               SizedBox(width: 10),
-              Text('Debt', style: TextStyle(color: Colors.white)),
+              Text('Refund Debt', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
       ],
-      color: Theme.of(context).primaryColor,
+      color: Colors.blue[900],
     ).then((value) {
       if (!mounted) return;
       if (value == 'Sale') showAddSaleForm(context);
-      if (value == 'Purchase') showAddPurchaseForm(context);
+      if (value == 'Product') showAddPurchaseForm(context);
       if (value == 'Expense') showAddSpentForm(context);
-      if (value == 'Debt') showAddDebtForm(context);
+      if (value == 'Debt') showPayDebtForm(context);
     });
   }
 
@@ -820,9 +825,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     }
   }
 
-  // [Keep all your existing form methods like showAddSaleForm, showAddPurchaseForm, etc.]
-  // These would be included exactly as they were in your original file
-  // I've omitted them here for brevity but they should be included in the actual file
   void showAddSaleForm(BuildContext context) async {
     final inventoryProvider = Provider.of<Inventoryprovider>(
       context,
@@ -844,6 +846,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     String currentQuantityController = '';
 
     List<Map<String, dynamic>> chartItems = [];
+
     // Clear all input fields
     void clearSalesFields() {
       searchController.clear();
@@ -1429,6 +1432,21 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                     ],
                                   ],
                                 ),
+                                TextFormField(
+                                  controller: _dateSaleController,
+                                  onTap: () => _selectDate(
+                                    context,
+                                    setModalState,
+                                    _dateSaleController,
+                                  ),
+                                  readOnly: true,
+                                  decoration: InputDecoration(
+                                    labelText: 'Date of Sale Record',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
 
@@ -1535,6 +1553,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                   _otherPaymentNameController.text.isNotEmpty
                                   ? _otherPaymentNameController.text
                                   : null,
+                              paymentDate: _dateSaleController.text.isNotEmpty
+                                  ? DateTime.parse(_dateSaleController.text)
+                                  : DateTime.now(),
                             );
 
                             // Create SaleData object
@@ -1557,7 +1578,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                 SnackBar(
                                   content: Center(
                                     child: Text(
-                                      '${chartItems.length} sale records added successfully',
+                                      'Sale records added successfully',
                                       style: TextStyle(
                                         color: Colors.green,
                                         fontSize: 18,
@@ -1611,7 +1632,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     final inventory = inventoryprovider.inventory;
     final itemNames = inventory.map((item) => item['name'] as String).toList();
     final formKey = GlobalKey<FormState>();
-    List<Map<String, dynamic>> tempSaleItems = [];
+    List<Map<String, dynamic>> tempPurchaseItems = [];
     _searchController.clear();
     _descriptionController.clear();
     _quantityController.clear();
@@ -1807,12 +1828,28 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             return null;
                           },
                         ),
+                        SizedBox(height: 20),
+                        TextFormField(
+                          controller: _datePurchaseController,
+                          onTap: () => _selectDate(
+                            context,
+                            setModalState,
+                            _datePurchaseController,
+                          ),
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: 'Date of Product Record',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: () {
                             if (formKey.currentState!.validate()) {
                               setModalState(() {
-                                tempSaleItems.add({
+                                tempPurchaseItems.add({
                                   'name': _searchController.text,
                                   'description': _descriptionController.text,
                                   'unit_price': int.tryParse(
@@ -1821,9 +1858,12 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                   'quantity': int.tryParse(
                                     _quantityController.text,
                                   ),
-                                  'total_price': int.tryParse(
-                                    _totalPriceController.text,
-                                  ),
+                                  'date_at':
+                                      _datePurchaseController.text.isNotEmpty
+                                      ? DateTime.parse(
+                                          _datePurchaseController.text,
+                                        ).toIso8601String()
+                                      : DateTime.now().toIso8601String(),
                                 });
                                 // Clear fields for next entry
                                 _searchController.clear();
@@ -1848,22 +1888,82 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             ),
                           ),
                         ),
+                        SizedBox(height: 20),
+                        if (tempPurchaseItems.isNotEmpty) ...[
+                          Text(
+                            'Products in List (${tempPurchaseItems.length})',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[900],
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Container(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  MediaQuery.of(context).size.height * 0.3,
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: tempPurchaseItems.length,
+                              itemBuilder: (context, index) {
+                                final item = tempPurchaseItems[index];
+                                return Card(
+                                  margin: EdgeInsets.symmetric(vertical: 5),
+                                  child: ListTile(
+                                    // title: Text(item['name']),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Name: ${item['name']}'),
+                                        Text(
+                                          'Description: ${item['description']}',
+                                        ),
+                                        Text('Qty: ${item['quantity']}'),
+                                        Text(
+                                          'Price: RWF ${item['unit_price']}',
+                                        ),
+                                        Text(
+                                          'Total price: RWF ${item['unit_price'] * item['quantity']}',
+                                        ),
+                                        Text(
+                                          'Total: RWF ${item['total_price']}',
+                                        ),
+                                        Text(
+                                          'Date: ${item['date_at'] != null
+                                              ? item['date_at'] is DateTime
+                                                    ? DateFormat('yyyy-MM-dd').format(item['date_at'])
+                                                    : DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date_at']))
+                                              : 'N/A'}',
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () {
+                                        setModalState(() {
+                                          tempPurchaseItems.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                        ],
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: () async {
-                            if (formKey.currentState!.validate()) {
-                              Map<String, dynamic> item = {
-                                'name': _searchController.text,
-                                'description': _descriptionController.text,
-                                'unit_price': int.tryParse(
-                                  _unitPriceController.text,
-                                ),
-                                'quantity': int.tryParse(
-                                  _quantityController.text,
-                                ),
-                              };
+                            if (tempPurchaseItems.isNotEmpty) {
                               if (await Inventoryprovider().addPurchaseRecord(
-                                item,
+                                tempPurchaseItems,
                               )) {
                                 formKey.currentState?.reset();
                                 _searchController.clear();
@@ -1871,29 +1971,69 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                 _quantityController.clear();
                                 _unitPriceController.clear();
                                 _totalPriceController.clear();
+                                _datePurchaseController.clear();
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Center(
-                                      child: Text(
-                                        'Purchase record added successfully',
-                                        style: TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          "Products record added successful!",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    duration: Duration(seconds: 3),
                                   ),
                                 );
                               }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: Colors.red[400],
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text(
+                                        "Products record not added. Please try again.",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue[900],
                           ),
                           child: Text(
-                            'Save Purchase Record',
+                            'Save Product Record',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white,
@@ -1944,7 +2084,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                       children: [
                         Center(
                           child: Text(
-                            'New Spent Record',
+                            'New Expense Record',
                             style: TextStyle(
                               fontSize: 24,
                               color: Colors.blue[900],
@@ -2003,7 +2143,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           ),
                           readOnly: true,
                           decoration: InputDecoration(
-                            labelText: 'Date of Spent Record',
+                            labelText: 'Date of Expense Record',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -2018,7 +2158,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                 'spent_amount': int.tryParse(
                                   spentAmountController.text,
                                 ),
-                                'date': _selectedDate?.toIso8601String(),
+                                'date_at': _selectedDate?.toIso8601String(),
                               };
                               bool success = await inventoryprovider
                                   .addSpentRecord(item);
@@ -2029,16 +2169,28 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Center(
-                                      child: Text(
-                                        'Spent record added successfully',
-                                        style: TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          "Expense record added successful!",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    duration: Duration(seconds: 3),
                                   ),
                                 );
                               } else {
@@ -2048,26 +2200,39 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Center(
-                                      child: Text(
-                                        'Error, Spent record not added successfully',
-                                        style: TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 18,
-                                        ),
-                                      ),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          "Expense record not added successful!",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    duration: Duration(seconds: 3),
                                   ),
                                 );
                               }
-                              // Process the form data
                             }
+                            // Process the form data
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue[900],
                           ),
                           child: Text(
-                            'Save Spent Record',
+                            'Save Expense Record',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white,
@@ -2267,6 +2432,203 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           ),
                           child: Text(
                             'Save Debt Record',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void showPayDebtForm(BuildContext context) async {
+    Inventoryprovider inventoryprovider = Provider.of<Inventoryprovider>(
+      context,
+      listen: false,
+    );
+    final formKey = GlobalKey<FormState>();
+    _debtPaymentAmountController.clear();
+    _debtPaymentDateController.clear();
+    _debtCustomerNameController.clear();
+    _debtCustomerPhoneController.clear();
+    _debtCustomerEmailController.clear();
+    _debtCustomerAddressController.clear();
+    _debtPaymentAmount = '';
+    List<Map<String, dynamic>> debtCustomers = await inventoryprovider
+        .getDebts();
+    List<Map<String, dynamic>> details = debtCustomers.map((debt) {
+      return {
+        'names': debt['names'] ?? '',
+        'phone': debt['phone'] ?? '',
+        'email': debt['email'] ?? '',
+        'address': debt['address'] ?? '',
+        'debt_amount': debt['debt_amount'] ?? 0.0,
+        'proposed_refund_date': debt['proposed_refund_date'] ?? '',
+        'total_refunded': debt['total_refunded'] ?? 0.0,
+        'rest_debts': debt['rest_debts'] ?? 0.0,
+        'items': debt['salesProducts'].map((item) {
+          return {
+            'name': item['name'] ?? '',
+            'description': item['description'] ?? '',
+            'unit_price': item['unit_price'] ?? 0,
+            'price': item['price'] ?? 0,
+            'quantity': item['quantity'] ?? 0,
+            'total_price': item['total_price'] ?? 0,
+          };
+        }).toList(),
+      };
+    }).toList();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: EdgeInsets.all(20),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Center(
+                          child: Text(
+                            'Pay Debt',
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        // TypeAheadFormField<String>(
+                        //   textFieldConfiguration: TextFieldConfiguration(
+                        //     controller: _debtCustomerNameController,
+                        //     decoration: InputDecoration(
+                        //       labelText:
+                        //           'Customer Name | Phone | Email | Address',
+                        //       border: OutlineInputBorder(
+                        //         borderRadius: BorderRadius.circular(8),
+                        //       ),
+                        //       suffixIcon: Icon(Icons.search),
+                        //     ),
+                        //   ),
+                        //   suggestionsCallback: (pattern) async {
+                        //     if (pattern.isEmpty) {
+                        //       return [];
+                        //     }
+                        //     return debtCustomers.where(
+                        //       (name) => name.toLowerCase().contains(
+                        //         pattern.toLowerCase(),
+                        //       ),
+                        //     );
+                        //   },
+                        //   itemBuilder: (context, suggestion) {
+                        //     return ListTile(title: Text(suggestion));
+                        //   },
+                        //   onSuggestionSelected: (suggestion) {
+                        //     setModalState(() {
+                        //       _debtCustomerNameController.text = suggestion;
+                        //     });
+                        //   },
+                        //   suggestionsBoxDecoration: SuggestionsBoxDecoration(
+                        //     borderRadius: BorderRadius.circular(8),
+                        //     color: Colors.white,
+                        //     elevation: 4.0,
+                        //     constraints: BoxConstraints(
+                        //       maxHeight:
+                        //           MediaQuery.of(context).size.height * 0.4,
+                        //     ),
+                        //   ),
+                        // ), end of typeahead
+                        // Payment Amount
+                        TextFormField(
+                          controller: _debtPaymentAmountController,
+                          decoration: InputDecoration(
+                            labelText: 'Payment Amount (RWF) *',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter payment amount';
+                            }
+                            if (int.tryParse(value) == null) {
+                              return 'Please enter a valid number';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 15),
+
+                        // Payment Date
+                        TextFormField(
+                          controller: _debtPaymentDateController,
+                          decoration: InputDecoration(
+                            labelText: 'Payment Date *',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          readOnly: true,
+                          onTap: () => _selectDate(
+                            context,
+                            setModalState,
+                            _debtPaymentDateController,
+                          ),
+                        ),
+                        SizedBox(height: 20),
+
+                        // Save Button
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              try {
+                                debtData = {
+                                  'payment_amount': double.parse(
+                                    _debtPaymentAmount,
+                                  ),
+                                  'payment_date':
+                                      _debtPaymentDateController.text,
+                                };
+                                Navigator.pop(context);
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            minimumSize: Size(double.infinity, 50),
+                          ),
+                          child: Text(
+                            'Pay Debt',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white,

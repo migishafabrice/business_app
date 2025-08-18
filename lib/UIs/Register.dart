@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:business_app/tools/Database_helper.dart';
+import 'package:flutter/material.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -67,6 +67,7 @@ class _RegisterState extends State<Register> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Logo and welcome text
+                    SizedBox(height: 20),
                     Column(
                       children: [
                         Container(
@@ -76,7 +77,7 @@ class _RegisterState extends State<Register> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withOpacity(0.2),
                                 blurRadius: 10,
                                 spreadRadius: 2,
                               ),
@@ -84,7 +85,7 @@ class _RegisterState extends State<Register> {
                           ),
                           child: Icon(
                             Icons.business,
-                            size: 60,
+                            size: 30,
                             color: Colors.blue[900],
                           ),
                         ),
@@ -100,10 +101,7 @@ class _RegisterState extends State<Register> {
                         const SizedBox(height: 10),
                         Text(
                           'Register your business to get started',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
+                          style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
                       ],
                     ),
@@ -118,7 +116,7 @@ class _RegisterState extends State<Register> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withOpacity(0.2),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -508,9 +506,7 @@ class _RegisterState extends State<Register> {
                       children: [
                         Text(
                           "Already have an account?",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
+                          style: TextStyle(color: Colors.white),
                         ),
                         TextButton(
                           onPressed: () {
@@ -538,52 +534,74 @@ class _RegisterState extends State<Register> {
 
   Future<void> _registerUser() async {
     if (formKey.currentState!.validate()) {
-      Map<String, dynamic> user = {
-        'shopname': _shopNameController.text,
-        'shopaddress': _shopAddressController.text,
-        'email': _emailController.text,
-        'phone': _phoneController.text,
-        'username': _usernameController.text,
-        'password': _passwordController.text,
-      };
-
       try {
-        int id = await DatabaseHelper.instance.insertUser(user);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 10),
-                Text(
-                  "Registration successful!",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+        if (formKey.currentState!.validate()) {
+          Map<String, dynamic> user = {
+            'shopname': _shopNameController.text,
+            'shopaddress': _shopAddressController.text,
+            'email': _emailController.text,
+            'phone': _phoneController.text,
+            'username': _usernameController.text,
+            'password': _passwordController.text,
+          };
+          int id = await DatabaseHelper.instance.insertUser(user);
+          if (id > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text(
+                      "Registration successful!",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: Colors.red[400],
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                content: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text(
+                      "Registration failed. Please try again.",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          // Clear form after successful registration
+          formKey.currentState!.reset();
+          _shopNameController.clear();
+          _shopAddressController.clear();
+          _emailController.clear();
+          _phoneController.clear();
+          _usernameController.clear();
+          _passwordController.clear();
+          _rPasswordController.clear();
 
-        // Clear form after successful registration
-        formKey.currentState!.reset();
-        _shopNameController.clear();
-        _shopAddressController.clear();
-        _emailController.clear();
-        _phoneController.clear();
-        _usernameController.clear();
-        _passwordController.clear();
-        _rPasswordController.clear();
-
-        // Navigate to login after a brief delay
-        await Future.delayed(Duration(seconds: 2));
-        Navigator.pushNamed(context, '/Login');
+          // Navigate to login after a brief delay
+          await Future.delayed(Duration(seconds: 2));
+          Navigator.pushNamed(context, '/Login');
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 import 'Database_helper.dart';
 
 // Define a proper data structure for sale records
@@ -124,7 +125,7 @@ class PaymentInfo {
   }
 }
 
-class Inventoryprovider with ChangeNotifier {
+class InventoryProvider with ChangeNotifier {
   List<Map<String, dynamic>> _inventory = [];
   double _sales = 0, _purchases = 0, _spents = 0, _debts = 0;
 
@@ -133,17 +134,74 @@ class Inventoryprovider with ChangeNotifier {
   double get purchasesAmount => _purchases;
   double get spentsAmount => _spents;
   double get debtsAmount => _debts;
+
+  List<Map<String, dynamic>> _purchaseReport = [];
+  List<Map<String, dynamic>> _saleReport = [];
+  List<Map<String, dynamic>> _expenseReport = [];
+  List<Map<String, dynamic>> _debtReport = [];
+  List<Map<String, dynamic>> get purchaseReport => _purchaseReport;
+  List<Map<String, dynamic>> get saleReport => _saleReport;
+  List<Map<String, dynamic>> get expenseReport => _expenseReport;
+  List<Map<String, dynamic>> get debtReport => _debtReport;
+  Future<void> generatePurchaseReport({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _purchaseReport = await DatabaseHelper.instance.getPurchaseReportData(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    notifyListeners();
+  }
+
+  Future<void> generateSaleReport({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _saleReport = await DatabaseHelper.instance.getSaleReportData(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    notifyListeners();
+  }
+
+  Future<void> generateExpenseReport({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _expenseReport = await DatabaseHelper.instance.getExpenseReportData(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    notifyListeners();
+  }
+
+  Future<void> generateDebtReport({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _debtReport = await DatabaseHelper.instance.getDebtReportData(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    print('Debt Report: $_debtReport');
+    notifyListeners();
+  }
+
   Future<bool> addPurchaseRecord(List<Map<String, dynamic>> items) async {
-    int row = await DatabaseHelper.instance.insertPurchase(items);
-    await getInventoryItems();
-    return row > 0 ? true : false;
+    try {
+      int row = await DatabaseHelper.instance.insertPurchase(items);
+      await getInventoryItems();
+      return row > 0;
+    } catch (e) {
+      return false;
+    }
   }
 
   // New method to handle complete sale data with looping
   Future<bool> addSaleRecord(SaleData saleData) async {
     try {
-      // Use a database transaction to prevent locking issues
-      return await DatabaseHelper.instance.executeTransaction((db) async {
+      return await DatabaseHelper.instance.executeTransaction((txn) async {
         // First, create the invoice
         final invoiceData = {
           'mode': saleData.paymentInfo.paymentMode,
@@ -154,9 +212,10 @@ class Inventoryprovider with ChangeNotifier {
         };
 
         // Insert invoice and get invoice ID
-        final invoiceId = await DatabaseHelper.instance.insertInvoiceWithDb(
-          db,
+        final invoiceId = await txn.insert(
+          'invoices',
           invoiceData,
+          conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
         // Process each sale item
@@ -175,23 +234,27 @@ class Inventoryprovider with ChangeNotifier {
               'product_id': product['id'],
               'sale_quantity': item.quantity,
               'unit_sale_price': item.unitPrice,
-              // ignore: unnecessary_null_comparison
               'created_at': saleData.saleDate.toIso8601String(),
             };
 
             // Insert sale record
-            final saleResult = await DatabaseHelper.instance
-                .insertSaleRecordWithDb(db, saleRecord);
+            final saleResult = await txn.insert(
+              'sales',
+              saleRecord,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
 
             if (saleResult <= 0) {
               allSuccess = false;
             } else {
               // Update inventory quantity
               final newQuantity = (product['quantity'] as int) - item.quantity;
-              await DatabaseHelper.instance.updateProductQuantityWithDb(
-                db,
-                product['id'],
-                newQuantity,
+              final now = DateTime.now().toIso8601String();
+              await txn.update(
+                'products',
+                {'quantity': newQuantity, 'created_at': now},
+                where: 'id = ?',
+                whereArgs: [product['id']],
               );
             }
           } else {
@@ -214,9 +277,10 @@ class Inventoryprovider with ChangeNotifier {
               'created_at': saleData.saleDate.toIso8601String(),
             };
 
-            final debtResult = await DatabaseHelper.instance.insertDebtWithDb(
-              db,
+            final debtResult = await txn.insert(
+              'debt',
               debtRecord,
+              conflictAlgorithm: ConflictAlgorithm.replace,
             );
             if (debtResult <= 0) {
               allSuccess = false;
@@ -236,18 +300,11 @@ class Inventoryprovider with ChangeNotifier {
     }
   }
 
-  // Legacy method for backward compatibility (can be removed later)
-  Future<bool> addSaleRecordLegacy(Map<String, dynamic> items) async {
-    int row = await DatabaseHelper.instance.insertSale(items);
-    await getInventoryItems();
-    return row > 0 ? true : false;
-  }
-
   // Method to add spent records
   Future<bool> addSpentRecord(Map<String, dynamic> spentData) async {
     try {
       int row = await DatabaseHelper.instance.insertSpent(spentData);
-      return row > 0 ? true : false;
+      return row > 0;
     } catch (e) {
       return false;
     }
@@ -268,7 +325,6 @@ class Inventoryprovider with ChangeNotifier {
       endDate: endDate,
     );
     _sales = totalSales;
-    // Notify listeners that sales amount has changed
     notifyListeners();
     return _sales;
   }
@@ -282,7 +338,6 @@ class Inventoryprovider with ChangeNotifier {
       endDate: endDate,
     );
     _purchases = totalPurchases;
-    // Notify listeners that purchases amount has changed
     notifyListeners();
   }
 
@@ -292,7 +347,6 @@ class Inventoryprovider with ChangeNotifier {
       endDate: endDate,
     );
     _spents = totalSpents;
-    // Notify listeners that spents amount has changed
     notifyListeners();
   }
 
@@ -302,7 +356,6 @@ class Inventoryprovider with ChangeNotifier {
       endDate: endDate,
     );
     _debts = totalDebts;
-    // Notify listeners that debts amount has changed
     notifyListeners();
   }
 
@@ -320,7 +373,6 @@ class Inventoryprovider with ChangeNotifier {
         getDebtsAmount(startDate: startDate, endDate: endDate),
         getDebts(),
       ]);
-      // Ensure listeners are notified after all data is refreshed
       notifyListeners();
       return true;
     } catch (e) {
@@ -340,7 +392,6 @@ class Inventoryprovider with ChangeNotifier {
         getDebtsAmount(),
         getDebts(),
       ]);
-      // Ensure listeners are notified
       notifyListeners();
     } catch (e) {
       notifyListeners();

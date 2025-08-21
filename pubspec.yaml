@@ -27,6 +27,12 @@ environment:
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
+flutter_launcher_icons:
+  android: true # Required for Android
+  ios: true     # Required for iOS
+  image_path: "assets/images/app.png" # Path to your icon file
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  remove_alpha_ios: true # Remove alpha channel for iOS
 dependencies:
   flutter:
     sdk: flutter
@@ -36,18 +42,11 @@ dependencies:
   path: ^1.8.3
   flutter_typeahead: ^4.3.7 
   provider: ^6.1.1
-  intl: ^0.18.1
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  intl: ^0.18.0
+  printing: ^5.11.0
+  pdf: ^3.10.7
   cupertino_icons: ^1.0.8
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/images/app.png"  # Path to your icon image
-  # Optional configurations:
-  # adaptive_icon_background: "#ffffff"  # For Android adaptive icons
-  adaptive_icon_foreground: "assets/images/app.png"
+  jiffy: ^6.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
     //     "${now.month}/${now.day}/${now.year}";
     // Get formatted dat
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => Inventoryprovider())],
+      providers: [ChangeNotifierProvider(create: (_) => InventoryProvider())],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Business App',

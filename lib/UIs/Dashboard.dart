@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:business_app/tools/inventoryProvider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:jiffy/jiffy.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -64,7 +68,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     _endDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final inventoryProvider = Provider.of<Inventoryprovider>(
+      final inventoryProvider = Provider.of<InventoryProvider>(
         context,
         listen: false,
       );
@@ -96,7 +100,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final inventoryProvider = Provider.of<Inventoryprovider>(
+        final inventoryProvider = Provider.of<InventoryProvider>(
           context,
           listen: false,
         );
@@ -107,7 +111,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final inventoryProvider = Provider.of<Inventoryprovider>(
+    final inventoryProvider = Provider.of<InventoryProvider>(
       context,
       listen: true,
     );
@@ -170,6 +174,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         backgroundColor: primaryColor[0],
         child: Icon(Icons.add, color: Colors.white, size: 32),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _buildBottomAppBar(primaryColor[0]),
     );
   }
@@ -234,7 +239,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   Widget _buildSummaryCards(
-    Inventoryprovider provider,
+    InventoryProvider provider,
     Color cardColor,
     Color textColor,
     Color primaryColor,
@@ -262,6 +267,31 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               cardColor,
               textColor,
               primaryColor,
+              () async {
+                final inventoryProvider = Provider.of<InventoryProvider>(
+                  context,
+                  listen: false,
+                );
+                final startDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_startDateController.text);
+                final endDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_endDateController.text);
+
+                await inventoryProvider.generateSaleReport(
+                  startDate: startDate,
+                  endDate: endDate,
+                );
+                if (!mounted) return;
+                showReportModal(
+                  context,
+                  cardColor,
+                  textColor,
+                  'Sales',
+                  inventoryProvider.saleReport,
+                );
+              },
             ),
             _buildSummaryCard(
               'Purchases',
@@ -270,6 +300,31 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               cardColor,
               textColor,
               primaryColor,
+              () async {
+                final inventoryProvider = Provider.of<InventoryProvider>(
+                  context,
+                  listen: false,
+                );
+                final startDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_startDateController.text);
+                final endDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_endDateController.text);
+
+                await inventoryProvider.generatePurchaseReport(
+                  startDate: startDate,
+                  endDate: endDate,
+                );
+                if (!mounted) return;
+                showReportModal(
+                  context,
+                  cardColor,
+                  textColor,
+                  'Purchases',
+                  inventoryProvider.purchaseReport,
+                );
+              },
             ),
             _buildSummaryCard(
               'Expenses',
@@ -278,6 +333,30 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               cardColor,
               textColor,
               primaryColor,
+              () async {
+                final inventoryProvider = Provider.of<InventoryProvider>(
+                  context,
+                  listen: false,
+                );
+                final startDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_startDateController.text);
+                final endDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_endDateController.text);
+
+                await inventoryProvider.generateExpenseReport(
+                  startDate: startDate,
+                  endDate: endDate,
+                );
+                if (!mounted) return;
+                showExpenseReportModal(
+                  context,
+                  cardColor,
+                  textColor,
+                  inventoryProvider.expenseReport,
+                );
+              },
             ),
             _buildSummaryCard(
               'Debts',
@@ -286,6 +365,30 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               cardColor,
               textColor,
               primaryColor,
+              () async {
+                final inventoryProvider = Provider.of<InventoryProvider>(
+                  context,
+                  listen: false,
+                );
+                final startDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_startDateController.text);
+                final endDate = DateFormat(
+                  'yyyy-MM-dd',
+                ).parse(_endDateController.text);
+
+                await inventoryProvider.generateDebtReport(
+                  startDate: startDate,
+                  endDate: endDate,
+                );
+                if (!mounted) return;
+                showDebtReportModal(
+                  context,
+                  cardColor,
+                  textColor,
+                  inventoryProvider.debtReport,
+                );
+              },
             ),
           ],
         ),
@@ -300,54 +403,60 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     Color cardColor,
     Color textColor,
     Color primaryColor,
+    Function reportFunction, // Default empty function
   ) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: cardColor,
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    shape: BoxShape.circle,
+    return InkWell(
+      onTap: () {
+        reportFunction();
+      },
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: cardColor,
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 20),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 20),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor.withOpacity(0.7),
+                  SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textColor.withOpacity(0.7),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              amount,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
+                ],
               ),
-            ),
-          ],
+              SizedBox(height: 8),
+              Text(
+                amount,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildChartsSection(
-    Inventoryprovider provider,
+    InventoryProvider provider,
     Color cardColor,
     Color textColor,
   ) {
@@ -374,7 +483,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 20),
-                Container(
+                SizedBox(
                   height: 200,
                   child: PieChart(
                     PieChartData(
@@ -437,7 +546,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 20),
-                Container(height: 200, child: _buildSummaryBarChart(provider)),
+                SizedBox(height: 200, child: _buildSummaryBarChart(provider)),
               ],
             ),
           ),
@@ -628,7 +737,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildSummaryBarChart(Inventoryprovider provider) {
+  Widget _buildSummaryBarChart(InventoryProvider provider) {
     final maxAmount = [
       provider.salesAmount,
       provider.purchasesAmount,
@@ -778,6 +887,35 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       lastDate: DateTime(2030),
     );
     if (picked != null) {
+      if ((controller == _endDateController &&
+              picked.isBefore(
+                DateFormat('yyyy-MM-dd').parse(_startDateController.text),
+              )) ||
+          (controller == _startDateController &&
+              picked.isAfter(
+                DateFormat('yyyy-MM-dd').parse(_endDateController.text),
+              ))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Column(
+                  children: [
+                    Text('End date cannot be before start date'),
+                    Text('Start date cannot be after end date'),
+                  ],
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+
+        return;
+      }
+
       setState(() {
         controller.text = DateFormat('yyyy-MM-dd').format(picked);
       });
@@ -790,7 +928,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         'yyyy-MM-dd',
       ).parse(_startDateController.text);
       final endDate = DateFormat('yyyy-MM-dd').parse(_endDateController.text);
-      final inventoryProvider = Provider.of<Inventoryprovider>(
+      final inventoryProvider = Provider.of<InventoryProvider>(
         context,
         listen: false,
       );
@@ -808,7 +946,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         );
       }
     } catch (e) {
-      final inventoryProvider = Provider.of<Inventoryprovider>(
+      final inventoryProvider = Provider.of<InventoryProvider>(
         context,
         listen: false,
       );
@@ -826,7 +964,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   void showAddSaleForm(BuildContext context) async {
-    final inventoryProvider = Provider.of<Inventoryprovider>(
+    final inventoryProvider = Provider.of<InventoryProvider>(
       context,
       listen: false,
     );
@@ -1421,10 +1559,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                             backgroundColor: Colors.deepOrange,
                                           ),
                                           child: Text(
-                                            'Add Debt Information',
+                                            'Add Details',
                                             style: TextStyle(
                                               color: Colors.white,
-                                              fontSize: 18,
+                                              fontSize: 14,
                                             ),
                                           ),
                                         ),
@@ -1624,7 +1762,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   void showAddPurchaseForm(BuildContext context) async {
-    final inventoryprovider = Provider.of<Inventoryprovider>(
+    final inventoryprovider = Provider.of<InventoryProvider>(
       context,
       listen: false,
     );
@@ -1683,8 +1821,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             ),
                           ),
                           suggestionsCallback: (pattern) async {
-                            // await Inventoryprovider().getInventoryItems();
-                            // final inventory = Inventoryprovider().inventory;
+                            // await InventoryProvider().getInventoryItems();
+                            // final inventory = InventoryProvider().inventory;
                             currentPriceController = '';
                             currentQuantityController = '';
                             if (pattern.isEmpty) {
@@ -1962,7 +2100,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         ElevatedButton(
                           onPressed: () async {
                             if (tempPurchaseItems.isNotEmpty) {
-                              if (await Inventoryprovider().addPurchaseRecord(
+                              if (await InventoryProvider().addPurchaseRecord(
                                 tempPurchaseItems,
                               )) {
                                 formKey.currentState?.reset();
@@ -2057,7 +2195,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     final formKey = GlobalKey<FormState>();
     TextEditingController reasonController = TextEditingController();
     TextEditingController spentAmountController = TextEditingController();
-    final inventoryprovider = Provider.of<Inventoryprovider>(
+    final inventoryprovider = Provider.of<InventoryProvider>(
       context,
       listen: false,
     );
@@ -2452,7 +2590,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   void showPayDebtForm(BuildContext context) async {
-    Inventoryprovider inventoryprovider = Provider.of<Inventoryprovider>(
+    InventoryProvider inventoryprovider = Provider.of<InventoryProvider>(
       context,
       listen: false,
     );
@@ -2701,9 +2839,11 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   ]) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime(2026),
+      lastDate: nameOfController == _debtProposedDateController
+          ? Jiffy.now().add(months: 3).dateTime
+          : DateTime.now(),
     );
     if (picked != null && picked != _selectedDate) {
       _selectedDate = picked;
@@ -2717,5 +2857,696 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         setModalState(() {});
       }
     }
+  }
+
+  void showReportModal(
+    BuildContext context,
+    Color cardColor,
+    Color textColor,
+    String title,
+    List<Map<String, dynamic>> reportData,
+  ) async {
+    if (reportData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No $title data available.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    double grandTotal = 0;
+    for (var item in reportData) {
+      grandTotal += (item['unit_price'] * item['quantity']);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: cardColor,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$title Report',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.print),
+                          onPressed: () async {
+                            // Generate PDF
+                            final pdf = pw.Document();
+
+                            pdf.addPage(
+                              pw.Page(
+                                build: (pw.Context context) {
+                                  return pw.Column(
+                                    crossAxisAlignment:
+                                        pw.CrossAxisAlignment.start,
+                                    children: [
+                                      pw.Text(
+                                        '$title Report',
+                                        style: pw.TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: pw.FontWeight.bold,
+                                        ),
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.TableHelper.fromTextArray(
+                                        context: context,
+                                        data: <List<String>>[
+                                          <String>[
+                                            'Name',
+                                            'Unit Price',
+                                            'Quantity',
+                                            'Total',
+                                            'Date',
+                                          ],
+                                          ...reportData.map(
+                                            (item) => [
+                                              item['name']?.toString() ?? '',
+                                              item['unit_price']?.toString() ??
+                                                  '',
+                                              item['quantity']?.toString() ??
+                                                  '',
+                                              ((item['unit_price'] ?? 0) *
+                                                      (item['quantity'] ?? 0))
+                                                  .toStringAsFixed(0),
+                                              item['date_at'] != null
+                                                  ? (item['date_at'] is DateTime
+                                                        ? DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            item['date_at'],
+                                                          )
+                                                        : DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            DateTime.parse(
+                                                              item['date_at'],
+                                                            ),
+                                                          ))
+                                                  : 'N/A',
+                                            ].map((e) => e.toString()).toList(),
+                                          ),
+                                        ],
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.Row(
+                                        mainAxisAlignment:
+                                            pw.MainAxisAlignment.end,
+                                        children: [
+                                          pw.Text(
+                                            'Grand Total: ',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                          pw.Text(
+                                            '${grandTotal.toStringAsFixed(0)} RWF',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+
+                            // Print or save PDF
+                            await Printing.layoutPdf(
+                              onLayout: (PdfPageFormat format) async =>
+                                  pdf.save(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: [
+                          DataColumn(label: Text('Name')),
+                          DataColumn(label: Text('Unit Price')),
+                          DataColumn(label: Text('Quantity')),
+                          DataColumn(label: Text('Total')),
+                          DataColumn(label: Text('Date')),
+                        ],
+                        rows: reportData.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(item['name']?.toString() ?? '')),
+                              DataCell(
+                                Text(item['unit_price']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(item['quantity']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(
+                                  (item['unit_price'] * item['quantity'])
+                                      .toStringAsFixed(0),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  item['date_at'] != null
+                                      ? item['date_at'] is DateTime
+                                            ? DateFormat(
+                                                'yyyy-MM-dd',
+                                              ).format(item['date_at'])
+                                            : DateFormat('yyyy-MM-dd').format(
+                                                DateTime.parse(item['date_at']),
+                                              )
+                                      : 'N/A',
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Grand Total: ',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${grandTotal.toStringAsFixed(0)} RWF',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void showExpenseReportModal(
+    BuildContext context,
+    Color cardColor,
+    Color textColor,
+    List<Map<String, dynamic>> reportData,
+  ) async {
+    if (reportData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No expenses data available.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    double grandTotal = 0;
+    for (var item in reportData) {
+      grandTotal += (item['spent_amount'] as double);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: cardColor,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Expenses Report',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.print),
+                          onPressed: () async {
+                            // Generate PDF
+                            final pdf = pw.Document();
+
+                            pdf.addPage(
+                              pw.Page(
+                                build: (pw.Context context) {
+                                  return pw.Column(
+                                    crossAxisAlignment:
+                                        pw.CrossAxisAlignment.start,
+                                    children: [
+                                      pw.Text(
+                                        'Expenses Report',
+                                        style: pw.TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: pw.FontWeight.bold,
+                                        ),
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.TableHelper.fromTextArray(
+                                        context: context,
+                                        data: <List<String>>[
+                                          <String>['Reason', 'Amount', 'Date'],
+                                          ...reportData.map(
+                                            (item) => [
+                                              item['reason']?.toString() ?? '',
+                                              item['spent_amount']
+                                                      ?.toString() ??
+                                                  '',
+                                              item['date_at'] != null
+                                                  ? (item['date_at'] is DateTime
+                                                        ? DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            item['date_at'],
+                                                          )
+                                                        : DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            DateTime.parse(
+                                                              item['date_at'],
+                                                            ),
+                                                          ))
+                                                  : 'N/A',
+                                            ].map((e) => e.toString()).toList(),
+                                          ),
+                                        ],
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.Row(
+                                        mainAxisAlignment:
+                                            pw.MainAxisAlignment.end,
+                                        children: [
+                                          pw.Text(
+                                            'Grand Total: ',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                          pw.Text(
+                                            '${grandTotal.toStringAsFixed(0)} RWF',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+
+                            // Print or save PDF
+                            await Printing.layoutPdf(
+                              onLayout: (PdfPageFormat format) async =>
+                                  pdf.save(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: [
+                          DataColumn(label: Text('Reason')),
+                          DataColumn(label: Text('Amount')),
+                          DataColumn(label: Text('Date')),
+                        ],
+                        rows: reportData.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(item['reason']?.toString() ?? '')),
+                              DataCell(
+                                Text(item['spent_amount']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(
+                                  item['date_at'] != null
+                                      ? item['date_at'] is DateTime
+                                            ? DateFormat(
+                                                'yyyy-MM-dd',
+                                              ).format(item['date_at'])
+                                            : DateFormat('yyyy-MM-dd').format(
+                                                DateTime.parse(item['date_at']),
+                                              )
+                                      : 'N/A',
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Grand Total: ',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${grandTotal.toStringAsFixed(0)} RWF',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void showDebtReportModal(
+    BuildContext context,
+    Color cardColor,
+    Color textColor,
+    List<Map<String, dynamic>> reportData,
+  ) async {
+    print('Length of Report Data: ${reportData.length}');
+    if (reportData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 8),
+              Text('No debt data available.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    double grandTotal = 0;
+    double totalRefunded = 0;
+    double totalRestDebts = 0;
+    for (var item in reportData) {
+      grandTotal += (item['debt_amount'] as double);
+      totalRefunded += (item['total_refunded'] as double);
+      totalRestDebts += (item['rest_amount'] as double);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: cardColor,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Debts Report',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.print),
+                          onPressed: () async {
+                            // Generate PDF
+                            final pdf = pw.Document();
+
+                            pdf.addPage(
+                              pw.Page(
+                                build: (pw.Context context) {
+                                  return pw.Column(
+                                    crossAxisAlignment:
+                                        pw.CrossAxisAlignment.start,
+                                    children: [
+                                      pw.Text(
+                                        'Debts Report',
+                                        style: pw.TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: pw.FontWeight.bold,
+                                        ),
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.TableHelper.fromTextArray(
+                                        context: context,
+                                        data: <List<String>>[
+                                          <String>[
+                                            'Names',
+                                            'Phone',
+                                            'Email',
+                                            'Address',
+                                            'Total Spent',
+                                            'Total Refunded',
+                                            'Rest Debts',
+                                            'Taken on',
+                                            'Proposed Date',
+                                          ],
+                                          ...reportData.map(
+                                            (item) => [
+                                              item['names']?.toString() ?? '',
+                                              item['phone']?.toString() ?? '',
+                                              item['email']?.toString() ?? '',
+                                              item['address']?.toString() ?? '',
+                                              item['debt_amount']?.toString() ??
+                                                  '',
+                                              item['total_refunded']
+                                                      ?.toString() ??
+                                                  '',
+                                              item['rest_amount']?.toString() ??
+                                                  '',
+                                              item['taken_on'] != null
+                                                  ? (item['taken_on']
+                                                            is DateTime
+                                                        ? DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            item['taken_on'],
+                                                          )
+                                                        : DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            DateTime.parse(
+                                                              item['taken_on'],
+                                                            ),
+                                                          ))
+                                                  : 'N/A',
+                                              item['proposed_date'] != null
+                                                  ? (item['proposed_date']
+                                                            is DateTime
+                                                        ? DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            item['proposed_date'],
+                                                          )
+                                                        : DateFormat(
+                                                            'yyyy-MM-dd',
+                                                          ).format(
+                                                            DateTime.parse(
+                                                              item['proposed_date'],
+                                                            ),
+                                                          ))
+                                                  : 'N/A',
+                                            ].map((e) => e.toString()).toList(),
+                                          ),
+                                        ],
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                      pw.Row(
+                                        mainAxisAlignment:
+                                            pw.MainAxisAlignment.end,
+                                        children: [
+                                          pw.Text(
+                                            'Total not Paid: ',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                          pw.Text(
+                                            '${totalRestDebts.toStringAsFixed(0)} RWF',
+                                            style: pw.TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+
+                            // Print or save PDF
+                            await Printing.layoutPdf(
+                              onLayout: (PdfPageFormat format) async =>
+                                  pdf.save(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: [
+                          DataColumn(label: Text('Names')),
+                          DataColumn(label: Text('Phone')),
+                          DataColumn(label: Text('Email')),
+                          DataColumn(label: Text('Address')),
+                          DataColumn(label: Text('Total Spent')),
+                          DataColumn(label: Text('Total Refunded')),
+                          DataColumn(label: Text('Rest Debts')),
+                          DataColumn(label: Text('Taken on')),
+                          DataColumn(label: Text('Proposed Date')),
+                        ],
+                        rows: reportData.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(item['names']?.toString() ?? '')),
+                              DataCell(Text(item['phone']?.toString() ?? '')),
+                              DataCell(Text(item['email']?.toString() ?? '')),
+                              DataCell(Text(item['address']?.toString() ?? '')),
+                              DataCell(
+                                Text(item['debt_amount']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(item['total_refunded']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(item['rest_amount']?.toString() ?? ''),
+                              ),
+                              DataCell(
+                                Text(
+                                  item['date_at'] != null
+                                      ? item['dare_at'] is DateTime
+                                            ? DateFormat(
+                                                'yyyy-MM-dd',
+                                              ).format(item['date_at'])
+                                            : DateFormat('yyyy-MM-dd').format(
+                                                DateTime.parse(item['date_at']),
+                                              )
+                                      : 'N/A',
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  item['proposed_date'] != null
+                                      ? item['proposed_date'] is DateTime
+                                            ? DateFormat(
+                                                'yyyy-MM-dd',
+                                              ).format(item['proposed_date'])
+                                            : DateFormat('yyyy-MM-dd').format(
+                                                DateTime.parse(
+                                                  item['proposed_date'],
+                                                ),
+                                              )
+                                      : 'N/A',
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Total not Paid: ',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${totalRestDebts.toStringAsFixed(0)} RWF',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

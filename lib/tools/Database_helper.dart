@@ -511,44 +511,92 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getAllDebts() async {
     return await executeTransaction((txn) async {
-      final List<Map<String, dynamic>> result = [];
-      final getDebtInfo = await txn.rawQuery("SELECT * FROM debt");
+      // Single query to get all debts with their total refunded amounts
+      final query = """
+      SELECT 
+        d.*,
+        COALESCE(SUM(pd.refund_amount), 0) as total_refunded,
+        (d.debt_amount - COALESCE(SUM(pd.refund_amount), 0)) as rest_amount,
+        CASE 
+          WHEN COALESCE(SUM(pd.refund_amount), 0) < d.debt_amount THEN 1 
+          ELSE 0 
+        END as is_unpaid_or_partial
+      FROM debt d
+      LEFT JOIN paid_debts pd ON d.id = pd.debt_id
+      GROUP BY d.id
+      HAVING is_unpaid_or_partial = 1
+    """;
 
-      if (getDebtInfo.isNotEmpty) {
-        for (var debt in getDebtInfo) {
-          final debtId = debt['id'] as int;
-          final paidDebts = await txn.rawQuery(
-            "SELECT SUM(refund_amount) as total_refunded FROM paid_debts WHERE debt_id = ?",
-            [debtId],
-          );
+      final debts = await txn.rawQuery(query);
+      if (debts.isEmpty) return [];
 
-          double totalRefunded = paidDebts.isNotEmpty
-              ? (paidDebts.first['total_refunded'] as double?) ?? 0
-              : 0;
-          double debtAmount = debt['debt_amount'] as double? ?? 0;
+      // Get all invoice IDs for batch query
+      final invoiceIds = debts
+          .map((debt) => debt['invoice_id'] as int)
+          .where((id) => id != 0)
+          .toSet() // Remove duplicates
+          .toList();
 
-          if (paidDebts.isEmpty || totalRefunded < debtAmount) {
-            final getSalesInfo = await txn.rawQuery(
-              "SELECT * FROM sales JOIN products ON sales.product_id = products.id WHERE sales.invoice_id = ?",
-              [debt['invoice_id']],
-            );
+      if (invoiceIds.isEmpty) return [];
 
-            if (getSalesInfo.isNotEmpty) {
-              result.add({'salesProducts': getSalesInfo});
-            }
+      // Single query to get all sales products for all relevant invoices
+      final placeholders = List.generate(
+        invoiceIds.length,
+        (_) => '?',
+      ).join(',');
+      final salesQuery =
+          """
+      SELECT 
+        s.*, 
+        p.name as name,
+        s.unit_sale_price,
+        s.sale_quantity,
+        s.invoice_id,
+        (s.unit_sale_price * s.sale_quantity) as product_total
+      FROM sales s 
+      JOIN products p ON s.product_id = p.id 
+      WHERE s.invoice_id IN ($placeholders)
+      ORDER BY s.invoice_id, p.name
+    """;
 
-            result.add({
-              'names': debt['names'],
-              'email': debt['email'],
-              'phone': debt['phone'],
-              'address': debt['address'],
-              'debt_amount': debt['debt_amount'],
-              'proposed_refund_date': debt['proposed_refund_date'],
-              'total_refunded': totalRefunded,
-              'rest_amount': debtAmount - totalRefunded,
-            });
-          }
+      final allSales = await txn.rawQuery(salesQuery, invoiceIds);
+
+      // Group sales by invoice_id for easy lookup
+      final salesByInvoice = <int, List<Map<String, dynamic>>>{};
+      for (var sale in allSales) {
+        final invoiceId = sale['invoice_id'] as int;
+
+        salesByInvoice.putIfAbsent(invoiceId, () => []).add(sale);
+      }
+
+      // Build result with pre-filtered data
+      final result = <Map<String, dynamic>>[];
+      for (var debt in debts) {
+        final invoiceId = debt['invoice_id'] as int?;
+        if (invoiceId == null) continue;
+
+        final salesProducts = salesByInvoice[invoiceId] ?? [];
+
+        // Calculate total sale for this invoice
+        double totalSale = 0;
+        for (var sale in salesProducts) {
+          totalSale +=
+              (sale['unit_sale_price'] as num) * (sale['sale_quantity'] as num);
         }
+
+        result.add({
+          'id': debt['id'],
+          'names': debt['names'],
+          'email': debt['email'],
+          'phone': debt['phone'],
+          'address': debt['address'],
+          'total_sale': totalSale,
+          'debt_amount': debt['debt_amount'],
+          'proposed_refund_date': debt['proposed_refund_date'],
+          'total_refunded': debt['total_refunded'],
+          'rest_amount': debt['rest_amount'],
+          'salesProducts': salesProducts,
+        });
       }
 
       return result;
@@ -748,6 +796,16 @@ LEFT JOIN paid_debts pd ON d.id = pd.debt_id
       } catch (e) {
         return false;
       }
+    });
+  }
+
+  Future<int> payDebtRecord(Map<String, dynamic> payDebtRecord) async {
+    return await executeTransaction((txn) async {
+      return await txn.insert(
+        'paid_debts',
+        payDebtRecord,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     });
   }
 }

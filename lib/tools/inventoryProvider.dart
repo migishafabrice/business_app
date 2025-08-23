@@ -381,7 +381,6 @@ class InventoryProvider with ChangeNotifier {
     }
   }
 
-  // Helper method to refresh all data after operations
   Future<void> _refreshAllData(DateTime saleDate) async {
     try {
       await Future.wait([
@@ -404,6 +403,16 @@ class InventoryProvider with ChangeNotifier {
       return debts;
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<int> payDebtRecord(Map<String, dynamic> paymentData) async {
+    try {
+      int row = await DatabaseHelper.instance.payDebtRecord(paymentData);
+      return row;
+    } catch (e) {
+      debugPrint('Error paying debt record: $e');
+      return 0;
     }
   }
 }

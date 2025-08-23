@@ -21,6 +21,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _unitPriceController = TextEditingController();
   final TextEditingController _totalPriceController = TextEditingController();
+  final _debtSearchController = TextEditingController();
   final _cashController = TextEditingController();
   final _momoController = TextEditingController();
   final _bankController = TextEditingController();
@@ -36,7 +37,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final formKey = GlobalKey<FormState>();
   final _debtPaymentAmountController = TextEditingController();
   final _debtPaymentDateController = TextEditingController();
-  String _debtPaymentAmount = '';
   var debtData = <String, dynamic>{};
   DateTime? _selectedDate;
   final TextEditingController _dateController = TextEditingController();
@@ -2590,42 +2590,40 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 
   void showPayDebtForm(BuildContext context) async {
+    final InventoryProvider inventoryProvider = Provider.of<InventoryProvider>(
+      context,
+      listen: false,
+    );
+    int debtId = 0;
+    Map<String, dynamic>? selectedDebt;
+    bool showDetails = false;
+    final debts = await inventoryProvider.getDebts();
+    if (debts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 8),
+              Text("There are no debts pending"),
+            ],
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     InventoryProvider inventoryprovider = Provider.of<InventoryProvider>(
       context,
       listen: false,
     );
     final formKey = GlobalKey<FormState>();
     _debtPaymentAmountController.clear();
-    _debtPaymentDateController.clear();
-    _debtCustomerNameController.clear();
-    _debtCustomerPhoneController.clear();
-    _debtCustomerEmailController.clear();
-    _debtCustomerAddressController.clear();
-    _debtPaymentAmount = '';
-    List<Map<String, dynamic>> debtCustomers = await inventoryprovider
-        .getDebts();
-    List<Map<String, dynamic>> details = debtCustomers.map((debt) {
-      return {
-        'names': debt['names'] ?? '',
-        'phone': debt['phone'] ?? '',
-        'email': debt['email'] ?? '',
-        'address': debt['address'] ?? '',
-        'debt_amount': debt['debt_amount'] ?? 0.0,
-        'proposed_refund_date': debt['proposed_refund_date'] ?? '',
-        'total_refunded': debt['total_refunded'] ?? 0.0,
-        'rest_debts': debt['rest_debts'] ?? 0.0,
-        'items': debt['salesProducts'].map((item) {
-          return {
-            'name': item['name'] ?? '',
-            'description': item['description'] ?? '',
-            'unit_price': item['unit_price'] ?? 0,
-            'price': item['price'] ?? 0,
-            'quantity': item['quantity'] ?? 0,
-            'total_price': item['total_price'] ?? 0,
-          };
-        }).toList(),
-      };
-    }).toList();
+    _debtPaymentDateController.text = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now());
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2639,13 +2637,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               child: Container(
                 padding: EdgeInsets.all(20),
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxHeight: MediaQuery.of(context).size.height * 0.9,
                 ),
                 child: SingleChildScrollView(
                   child: Form(
                     key: formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Center(
                           child: Text(
@@ -2657,63 +2656,183 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             ),
                           ),
                         ),
-                        SizedBox(height: 10),
-                        // TypeAheadFormField<String>(
-                        //   textFieldConfiguration: TextFieldConfiguration(
-                        //     controller: _debtCustomerNameController,
-                        //     decoration: InputDecoration(
-                        //       labelText:
-                        //           'Customer Name | Phone | Email | Address',
-                        //       border: OutlineInputBorder(
-                        //         borderRadius: BorderRadius.circular(8),
-                        //       ),
-                        //       suffixIcon: Icon(Icons.search),
-                        //     ),
+                        TypeAheadFormField<Map<String, dynamic>>(
+                          textFieldConfiguration: TextFieldConfiguration(
+                            controller: _debtSearchController,
+                            decoration: InputDecoration(
+                              suffixIcon: Icon(Icons.search),
+                              labelText: 'Search Debt by Phone *',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          suggestionsCallback: (pattern) {
+                            return debts.where(
+                              (debt) => debt['phone']
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains(pattern.toLowerCase()),
+                            );
+                          },
+                          itemBuilder: (context, suggestion) {
+                            return ListTile(
+                              title: Text(
+                                suggestion['names']?.toString() ?? 'No Name',
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 10),
+                                  Text(
+                                    suggestion['phone']?.toString() ??
+                                        'No Phone',
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Invoice Amount: ${suggestion['total_sale']?.toStringAsFixed(0) ?? '0'} RWF',
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Total Debt: ${suggestion['debt_amount']?.toStringAsFixed(0) ?? '0'} RWF',
+                                    style: TextStyle(color: Colors.blue),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Total Paid on Debt: ${suggestion['total_refunded']?.toStringAsFixed(0) ?? '0'} RWF',
+                                    style: TextStyle(color: Colors.green),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Remaining: ${suggestion['rest_amount']?.toStringAsFixed(0) ?? '0'} RWF',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Proposed Date: ${suggestion['proposed_refund_date'] ?? 'N/A'}',
+                                  ),
+                                  SizedBox(height: 10),
+                                ],
+                              ),
+                            );
+                          },
+                          onSuggestionSelected: (suggestion) {
+                            setModalState(() {
+                              _debtSearchController.text =
+                                  suggestion['phone'] ?? '';
+                              debtId = suggestion['id'] ?? 0;
+                              selectedDebt = suggestion;
+                              showDetails = true;
+                            });
+                          },
+                          noItemsFoundBuilder: (context) => Container(
+                            padding: EdgeInsets.all(8),
+                            child: Text(
+                              'No debts found for this phone number.',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                        // suggestionsBoxDecoration: SuggestionsBoxDecoration(
+                        //   constraints: BoxConstraints(
+                        //     maxHeight: MediaQuery.of(context).size.height * 0.3,
                         //   ),
-                        //   suggestionsCallback: (pattern) async {
-                        //     if (pattern.isEmpty) {
-                        //       return [];
-                        //     }
-                        //     return debtCustomers.where(
-                        //       (name) => name.toLowerCase().contains(
-                        //         pattern.toLowerCase(),
-                        //       ),
-                        //     );
-                        //   },
-                        //   itemBuilder: (context, suggestion) {
-                        //     return ListTile(title: Text(suggestion));
-                        //   },
-                        //   onSuggestionSelected: (suggestion) {
-                        //     setModalState(() {
-                        //       _debtCustomerNameController.text = suggestion;
-                        //     });
-                        //   },
-                        //   suggestionsBoxDecoration: SuggestionsBoxDecoration(
-                        //     borderRadius: BorderRadius.circular(8),
-                        //     color: Colors.white,
-                        //     elevation: 4.0,
-                        //     constraints: BoxConstraints(
-                        //       maxHeight:
-                        //           MediaQuery.of(context).size.height * 0.4,
-                        //     ),
-                        //   ),
-                        // ), end of typeahead
+                        // ),
+                        SizedBox(height: 20),
+                        if (showDetails && selectedDebt != null)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Customer: ${selectedDebt?['names']}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text('Phone: ${selectedDebt?['phone']}'),
+                              SizedBox(height: 8),
+                              Text(
+                                'Remaining Debt: ${selectedDebt?['rest_amount']?.toStringAsFixed(0) ?? '0'} RWF',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              if ((selectedDebt?['salesProducts']
+                                          as List<dynamic>? ??
+                                      [])
+                                  .isNotEmpty) ...[
+                                Text(
+                                  'Items in this debt invoice:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Container(
+                                  constraints: BoxConstraints(maxHeight: 150),
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount:
+                                        (selectedDebt?['salesProducts']
+                                                as List<dynamic>)
+                                            .length,
+                                    itemBuilder: (ctx, productIndex) {
+                                      final item =
+                                          (selectedDebt!['salesProducts']
+                                              as List<dynamic>)[productIndex];
+                                      print(
+                                        selectedDebt!['salesProducts'].length,
+                                      );
+                                      return Card(
+                                        margin: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: ListTile(
+                                          title: Text(
+                                            item['name'] ?? 'No Name',
+                                          ),
+                                          subtitle: Text(
+                                            'Qty: ${item['sale_quantity']} @ ${item['unit_sale_price']} RWF',
+                                          ),
+                                          trailing: Text(
+                                            'Total: ${(item!['sale_quantity'] * item!['unit_sale_price']).toStringAsFixed(0)} RWF',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Divider(height: 32),
+                              ],
+                            ],
+                          ),
+
                         // Payment Amount
                         TextFormField(
                           controller: _debtPaymentAmountController,
                           decoration: InputDecoration(
                             labelText: 'Payment Amount (RWF) *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter payment amount';
                             }
-                            if (int.tryParse(value) == null) {
+                            final amount = double.tryParse(value);
+                            if (amount == null) {
                               return 'Please enter a valid number';
+                            }
+                            if (selectedDebt != null &&
+                                amount >
+                                    (selectedDebt?['rest_amount'] ?? 0.0)) {
+                              return 'Amount cannot be greater than remaining debt.';
                             }
                             return null;
                           },
@@ -2725,9 +2844,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           controller: _debtPaymentDateController,
                           decoration: InputDecoration(
                             labelText: 'Payment Date *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            border: OutlineInputBorder(),
                           ),
                           readOnly: true,
                           onTap: () => _selectDate(
@@ -2741,20 +2858,49 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         // Save Button
                         ElevatedButton(
                           onPressed: () async {
-                            if (formKey.currentState!.validate()) {
-                              try {
-                                debtData = {
-                                  'payment_amount': double.parse(
-                                    _debtPaymentAmount,
-                                  ),
-                                  'payment_date':
-                                      _debtPaymentDateController.text,
-                                };
+                            if (formKey.currentState!.validate() &&
+                                debtId >= 1 &&
+                                selectedDebt != null) {
+                              final success = await inventoryprovider
+                                  .payDebtRecord({
+                                    'debt_id': debtId,
+                                    'refund_amount': double.parse(
+                                      _debtPaymentAmountController.text,
+                                    ),
+                                    'mode': 'Cash',
+                                    'created_at':
+                                        _debtPaymentDateController.text,
+                                  });
+
+                              if (success > 0) {
                                 Navigator.pop(context);
-                              } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Error: $e'),
+                                    content: Row(
+                                      children: [
+                                        Icon(Icons.info, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Debt payment successful!',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                // Refresh dashboard data
+                                inventoryprovider.refreshDashboardData();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(Icons.error, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text('Failed to record debt payment.'),
+                                      ],
+                                    ),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -2766,7 +2912,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             minimumSize: Size(double.infinity, 50),
                           ),
                           child: Text(
-                            'Pay Debt',
+                            'Save Payment',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white,
@@ -3421,23 +3567,69 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                                         ],
                                       ),
                                       pw.SizedBox(height: 12),
-                                      pw.Row(
+                                      pw.Column(
                                         mainAxisAlignment:
                                             pw.MainAxisAlignment.end,
                                         children: [
-                                          pw.Text(
-                                            'Total not Paid: ',
-                                            style: pw.TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: pw.FontWeight.bold,
-                                            ),
+                                          pw.Row(
+                                            children: [
+                                              pw.Text(
+                                                'Debt Total: ',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                              pw.Text(
+                                                '${grandTotal.toStringAsFixed(0)} RWF',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          pw.Text(
-                                            '${totalRestDebts.toStringAsFixed(0)} RWF',
-                                            style: pw.TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: pw.FontWeight.bold,
-                                            ),
+                                          pw.Row(
+                                            children: [
+                                              pw.Text(
+                                                'Total Refunded: ',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                              pw.Text(
+                                                '${totalRefunded.toStringAsFixed(0)} RWF',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          pw.Row(
+                                            children: [
+                                              pw.Text(
+                                                'Total not Paid: ',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                              pw.Text(
+                                                '${totalRestDebts.toStringAsFixed(0)} RWF',
+                                                style: pw.TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -3473,6 +3665,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         ],
                         rows: reportData.map((item) {
                           return DataRow(
+                            onSelectChanged: (bool? selected) {
+                              if (selected == true) {
+                                Navigator.pop(
+                                  context,
+                                ); // Close the report modal
+                                showPayDebtForm(context);
+                              }
+                            },
                             cells: [
                               DataCell(Text(item['names']?.toString() ?? '')),
                               DataCell(Text(item['phone']?.toString() ?? '')),
